@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 45) {
+    if (m && +m[1] < 46) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -131,6 +131,7 @@ const video = $("video");
 let subs = [], cur = -1, notes = {}, session = null, pending = null;
 let noteTimer = null, saveSeq = 0;
 let oneShot = 0, needRewind = true, internalPause = false;
+let lockRenderIdx = -1; // 放一句就停后：强制文字停在本句，不被 timeupdate/seeked 重算到下一句
 let dictIdx = -1, revealed = false, ACTS = {};
 let seekPending = false; // seek 未完成期间冻结渲染，避免 timeupdate 拿旧位置把画面刷回原句
 /* 精修意群排版 */
@@ -257,6 +258,11 @@ function renderSentence(i) {
   if (i >= 0 && Date.now() - savePosT > 1200) { savePosT = Date.now(); saveProgress(); }
 }
 function render(force = false) {
+  if (lockRenderIdx >= 0 && lockRenderIdx < subs.length) {
+    if (cur !== lockRenderIdx || force) { cur = lockRenderIdx; renderSentence(lockRenderIdx); }
+    syncSeek();
+    return;
+  }
   const i = findIdx(video.currentTime);
   if (i < 0) return;
   if (i !== cur || force) {
@@ -276,6 +282,7 @@ function resetDict() {
   f.textContent = "";
 }
 function cancelOneShot() {
+  lockRenderIdx = -1;
   if (oneShot < 0) return;
   oneShot = -1;
   $("oneBtn").classList.remove("active");
@@ -284,6 +291,7 @@ function syncPlayBtns() {
   $("cardPlayBtn").textContent = video.paused ? "▶ 播放" : "⏸ 暂停";
 }
 function playCurrent() {
+  lockRenderIdx = -1;           // 用户重新播放：解除文字锁定
   if (oneShot >= 0 && needRewind && subs[oneShot]) {
     const target = Math.max(0, subs[oneShot].start + 0.01);
     safeSeek(target);
@@ -306,17 +314,22 @@ function endOneShot() {
   if (oneShot < 0) return;
   const idx = oneShot;
   oneShot = -1;                 // 先清标记，避免 seek/timeupdate 重入再触发
+  lockRenderIdx = idx;          // 锁定文字停在本句
   internalPause = true;
   video.pause();
-  const stopAt = Math.max(0, subs[idx].end - 0.03);
+  // 定位点往本句内退 0.15 秒：确保 seek 后的时间仍落在本句，不会被 findIdx 算到下一句
+  const stopAt = Math.max(subs[idx].start, subs[idx].end - 0.15);
   if (Math.abs(video.currentTime - stopAt) > 0.06) safeSeek(stopAt);
-  // seek 后浏览器可能自恢复播放，延迟再按一次暂停（双保险）
   video.pause();
-  setTimeout(() => { if (!video.paused) { internalPause = true; video.pause(); internalPause = false; } }, 60);
+  setTimeout(() => {
+    if (!video.paused) { internalPause = true; video.pause(); internalPause = false; }
+    // seeked 可能晚到，再锁一次文字
+    lockRenderIdx = idx; cur = idx; renderSentence(idx); syncSeek();
+  }, 80);
   internalPause = false;
   oneShot = idx;                // 保留标记，点播放时重听本句
   needRewind = true;
-  cur = -1; render(true);
+  cur = idx; renderSentence(idx); syncSeek();
   toast("本句播完，已暂停 · 再点播放重听本句");
 }
 /* 字幕未加载时先补载再跳，避免按钮“没反应” */
@@ -325,6 +338,7 @@ function ensureSubsThen(fn) {
   loadSubs().then(ok => { if (ok) fn(); });
 }
 function go(i, play = false) {
+  lockRenderIdx = -1;           // 用户切句：解除文字锁定
   if (!subs.length) { ensureSubsThen(() => go(i, play)); return; }
   i = Math.max(0, Math.min(subs.length - 1, i));
   needRewind = true;
@@ -354,6 +368,7 @@ function syncSeek() {
   $("curTime").textContent = fmt(video.currentTime);
 }
 function seekByRange() {
+  lockRenderIdx = -1;           // 用户拖进度条：解除文字锁定
   const d = video.duration;
   if (!d || !isFinite(d)) return;
   let t = Number($("seek").value) / 1000 * d;
@@ -1100,6 +1115,7 @@ async function refreshStorageInfo() {
   } catch (err) { /* 忽略 */ }
 }
 async function switchEpisode(e) {
+  lockRenderIdx = -1;
   if (!e.ready || e.ep === ep.ep) { $("epModal").classList.add("hidden"); return; }
   $("epModal").classList.add("hidden");   // 立刻收起，点「看这课」马上有反应
   toast(`正在切换到第${e.ep}集…`);
