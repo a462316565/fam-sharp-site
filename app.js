@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 52) {
+    if (m && +m[1] < 53) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -506,7 +506,14 @@ async function genNative(){
     try{ localStorage.setItem(nativeKey(), out); }catch(e){}
     if(nativeMode) showNativeLine();
   }catch(e){
-    if(nativeMode){ const line=$("nativeLine"); if(line) line.innerHTML='<b>地道：</b><span class="ai-err">生成失败，请重试</span>'; }
+    if(nativeMode){
+      const line=$("nativeLine");
+      if(line){
+        line.innerHTML='<b>地道：</b><span class="ai-err">生成失败，请重试</span>';
+        // 失败提示几秒后自动收起，不一直挂着
+        setTimeout(()=>{ if(nativeMode && line.textContent.includes("生成失败")){ nativeMode=false; showNativeLine(); if($("nativeBtn")){ $("nativeBtn").textContent="地道翻译"; $("nativeBtn").classList.remove("active"); } } }, 3500);
+      }
+    }
   }
 }
 if($("nativeBtn")) $("nativeBtn").onclick = ()=>{
@@ -570,20 +577,27 @@ document.addEventListener("click", (e)=>{
 document.addEventListener("pointerdown", (e)=>{
   const m=$("wordMenu");
   if(m && !m.classList.contains("hidden") && !e.target.closest("#wordMenu") && !e.target.closest(".w")){
-    m.classList.add("hidden");
+    closeWordMenu();
   }
 }, true);
 let _wordJustMenu=false;
+function closeWordMenu(){
+  $("wordMenu").classList.add("hidden");
+  $("wordMenuMask").classList.add("hidden");
+}
 function showWordMenu(w){
   _wordJustMenu=true; setTimeout(()=>{_wordJustMenu=false;},400);
   $("wordMenuWord").textContent = w.dataset.w;
-  $("wordMenu").classList.remove("hidden");
   $("wordMenu").dataset.w = w.dataset.w;
   $("wordMenu").dataset.cn = w.dataset.cn;
+  $("wordMenuMask").classList.remove("hidden");   // 全屏遮罩：点任何空白处都能关
+  $("wordMenu").classList.remove("hidden");
 }
-$("wordMenuAddMispro").onclick = ()=>{ const m=$("wordMenu"); addToWordList("mispro", m.dataset.w, m.dataset.cn); m.classList.add("hidden"); };
-$("wordMenuAddWord").onclick = ()=>{ const m=$("wordMenu"); addToWordList("word", m.dataset.w, m.dataset.cn); m.classList.add("hidden"); };
-$("wordMenuCancel").onclick = ()=>{ $("wordMenu").classList.add("hidden"); };
+$("wordMenuMask").addEventListener("click", closeWordMenu);
+$("wordMenuMask").addEventListener("pointerdown", closeWordMenu);
+$("wordMenuAddMispro").onclick = ()=>{ const m=$("wordMenu"); addToWordList("mispro", m.dataset.w, m.dataset.cn); closeWordMenu(); };
+$("wordMenuAddWord").onclick = ()=>{ const m=$("wordMenu"); addToWordList("word", m.dataset.w, m.dataset.cn); closeWordMenu(); };
+$("wordMenuCancel").onclick = closeWordMenu;
 // 两个列表页面：渲染 + 导出
 function renderListPage(kind){
   const key = kind==="mispro" ? LS_MISPRO : LS_WORDS;
