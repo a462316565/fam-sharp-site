@@ -285,8 +285,16 @@ function syncPlayBtns() {
 }
 function playCurrent() {
   if (oneShot >= 0 && needRewind && subs[oneShot]) {
-    safeSeek(Math.max(0, subs[oneShot].start + 0.01));
+    const target = Math.max(0, subs[oneShot].start + 0.01);
+    safeSeek(target);
     cur = -1; render(true);
+    // 手机慢缓冲时，seek 后浏览器可能把位置弹到已缓冲区间 → 多放一句。
+    // 播放起来后再校验一次：偏离目标超过1.5秒就拉回来（只纠正一次，避免死循环）。
+    setTimeout(() => {
+      if (oneShot >= 0 && !video.paused && Math.abs(video.currentTime - target) > 1.5) {
+        safeSeek(target);
+      }
+    }, 350);
   }
   needRewind = false;
   video.play().catch(() => {});
