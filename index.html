@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <link rel="apple-touch-icon" sizes="120x120" href="icons/apple-touch-icon-iphone.png">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="styles.css?v=43">
+<link rel="stylesheet" href="styles.css?v=44">
 </head>
 <body>
 <main class="wrap">
@@ -46,9 +46,6 @@
     <section class="card" id="sentenceCard">
       <div class="card-head">
         <span id="sentSp" class="sp">—</span>
-        <span id="sentIdx" class="idx">第 1 句</span>
-        <button id="phToggle" class="ctrl rich-tool active" title="发音标开关">🔤 发音</button>
-        <button id="fontBtn" class="ctrl rich-tool" title="切换字号">A 字号：中</button>
       </div>
       <div class="card-cn" id="sentCn">…</div>
       <div class="dict-row">
@@ -58,7 +55,7 @@
         <button id="aiBtn" class="ctrl">问AI</button>
         <button id="favBtn" class="ctrl fav" title="收藏本句与错误原因到笔记">★收藏</button>
       </div>
-      <div id="dictFb" class="dict-fb">听当前句的音频，输入你听到的英文再点「确认」；标点、大小写、删除线的弱读字母都判对。</div>
+      <div id="dictFb" class="dict-fb"></div>
       <div class="card-actions">
         <button id="prevBtn" class="ctrl">‹ 上一句</button>
         <button id="repeatBtn" class="ctrl">↻ 重放</button>
@@ -71,6 +68,11 @@
     </section>
 
     <section class="controls">
+      <div class="card-head">
+        <span id="sentIdx" class="idx">第 1 句</span>
+        <button id="phToggle" class="ctrl rich-tool active" title="发音标开关">🔤 发音</button>
+        <button id="fontBtn" class="ctrl rich-tool" title="切换字号">A 字号：中</button>
+      </div>
       <div class="menu-wrap">
         <button id="speedBtn" class="big">1.0×</button>
         <div id="speedPanel" class="panel speed-panel"></div>
@@ -81,7 +83,7 @@
     </section>
 
     <div class="foot">
-      <span class="foot-brand">走遍美国精听 <span id="epLabel" class="ep">第5集 · The Right Magic</span><span class="ver">v43 全26集</span></span>
+      <span class="foot-brand">走遍美国精听 <span id="epLabel" class="ep">第5集 · The Right Magic</span><span class="ver">v44 全26集·布局</span></span>
       <span id="dlPanel" class="dl-panel hidden"></span>
       <button id="epBtn" class="pill">选课</button>
       <button id="installBtn" class="pill hidden">安装到手机</button>
@@ -160,6 +162,6 @@
   };
   const cloud = WorkBuddyCloud.createWorkBuddyCloud(publicConfig);
 </script>
-<script src="app.js?v=43" defer></script>
+<script src="app.js?v=44" defer></script>
 </body>
 </html>
