@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <link rel="apple-touch-icon" sizes="120x120" href="icons/apple-touch-icon-iphone.png">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="styles.css?v=49">
+<link rel="stylesheet" href="styles.css?v=50">
 </head>
 <body>
 <main class="wrap">
@@ -51,7 +51,8 @@
       <div class="dict-row">
         <input id="dictInput" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="听写：输入你听到的英文">
         <button id="dictCheck" class="ctrl primary">确认</button>
-        <button id="dictShow" class="ctrl">看答案</button>
+        <button id="showBoth" class="ctrl" title="显示中文和英文">带英文</button>
+        <button id="showEnOnly" class="ctrl" title="只显示英文，藏起中文">仅英文</button>
         <button id="aiBtn" class="ctrl">问AI</button>
         <button id="favBtn" class="ctrl fav" title="收藏本句与错误原因到笔记">★收藏</button>
       </div>
@@ -83,7 +84,7 @@
     </section>
 
     <div class="foot">
-      <span class="foot-brand">走遍美国精听 <span id="epLabel" class="ep">第5集 · The Right Magic</span><span class="ver">v49 点读加词</span></span>
+      <span class="foot-brand">走遍美国精听 <span id="epLabel" class="ep">第5集 · The Right Magic</span><span class="ver">v50 答案两模式</span></span>
       <span id="dlPanel" class="dl-panel hidden"></span>
       <button id="epBtn" class="pill">选课</button>
       <button id="installBtn" class="pill hidden">安装到手机</button>
@@ -195,6 +196,6 @@
   };
   const cloud = WorkBuddyCloud.createWorkBuddyCloud(publicConfig);
 </script>
-<script src="app.js?v=49" defer></script>
+<script src="app.js?v=50" defer></script>
 </body>
 </html>
