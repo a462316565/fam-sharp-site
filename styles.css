@@ -24,6 +24,7 @@ button:active{transform:translateY(1px)}
 .brand .ver{font-size:11px;color:#fff;background:var(--gold);border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:2px}
 .top-actions{display:flex;gap:8px}
 .pill{border-radius:999px;padding:6px 12px;font-size:14px}
+.pill.hidden{display:none}
 .wrap{max-width:960px;margin:0 auto;padding:14px}
 .stage{position:relative;background:#000;border-radius:14px;overflow:hidden;box-shadow:0 6px 24px #0002;width:100%;aspect-ratio:16/9;flex:none}
 /* 兜底：国产内核（X5/QQ）不认 aspect-ratio 时用 padding-top 撑出 16:9 */
