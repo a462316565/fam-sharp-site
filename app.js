@@ -685,13 +685,40 @@ $("closeNote").onclick = () => { clearTimeout(noteTimer); saveNote(); $("noteMod
 $("noteText").addEventListener("input", () => {
   clearTimeout(noteTimer);
   $("noteStatus").textContent = "等待输入…";
-  noteTimer = setTimeout(saveNote, 800);
+  noteTimer = setTimeout(async () => {
+    const text = $("noteText").value;
+    if (cur >= 0) notes[cur] = text;
+    if (!session) {
+      // 未登录：立刻存本地并明确提示，不让状态卡在"等待输入…"
+      if (text.trim()) { saveLocalNote(cur, text); $("noteStatus").textContent = "已存本机（登录后可云端同步）"; }
+      else { removeLocalNote(cur); $("noteStatus").textContent = "未写笔记"; }
+      renderNoteList(); renderFavBar();
+      return;
+    }
+    await saveNote();
+  }, 800);
 });
 $("delNote").onclick = async () => {
-  if (cur < 0 || !session) return;
+  if (cur < 0) return;
   $("noteText").value = "";
-  await saveNote(); removeLocalNote(cur); renderFavBar(); toast("已删除本句笔记");
+  notes[cur] = "";
+  if (session) await saveNote().catch(() => {});
+  removeLocalNote(cur); renderFavBar(); renderNoteList();
+  $("noteStatus").textContent = "已删除本句笔记";
+  toast("已删除本句笔记");
 };
+// 「删除本句」收藏条按钮：删除当前句的收藏/笔记（原"清空全部"无绑定，点了没反应）
+function deleteCurFav() {
+  if (cur < 0) { toast("请先选一句"); return; }
+  if (!confirm("删除本句的收藏笔记？")) return;
+  notes[cur] = "";
+  if (!$("noteModal").classList.contains("hidden")) $("noteText").value = "";
+  if (session) saveNote().catch(() => {});
+  removeLocalNote(cur);
+  renderFavBar(); renderNoteList();
+  toast("已删除本句收藏");
+}
+if ($("favDel")) $("favDel").onclick = deleteCurFav;
 
 /* ---------- 离线缓存（按课管理） ---------- */
 function metaKey(e) { return "fam_offline_meta_ep" + e.ep; }
@@ -1490,7 +1517,7 @@ async function loadSubs() {
   // 立即锁定，防止加载期间的渲染把旧进度覆盖
   lockProgress = true;
   try {
-    const er = await fetch(dataURL("data/episodes.json"));
+    const er = await fetch(dataURL("data/episodes.json"), { cache: "reload" });
     EPS = await er.json();
     // 清单里的配置更权威；但只在它确实能确认目标集时才替换，避免限速失败时回退
     const last = EPS.find(x => x.ep === prog.ep && x.ready);
