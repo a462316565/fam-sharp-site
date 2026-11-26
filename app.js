@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 47) {
+    if (m && +m[1] < 48) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -343,6 +343,8 @@ function go(i, play = false) {
   i = Math.max(0, Math.min(subs.length - 1, i));
   needRewind = true;
   if (oneShot >= 0) oneShot = i;
+  // 切句一律先静音暂停——只有点「播放/重放」才出声（用户要求）
+  if (!video.paused) { internalPause = true; video.pause(); internalPause = false; }
   // 直接按目标句渲染，不等 seek 完成——安卓上 seek 期间 currentTime 可能还是旧值
   const target = Math.max(0, subs[i].start + 0.01);
   if (Math.abs(video.currentTime - target) > 0.05) seekPending = true;
@@ -1201,7 +1203,7 @@ document.querySelectorAll(".act-btn").forEach(b => {
     const a = b.dataset.act;
     const jump = () => {
       if (!(a in ACTS)) { toast("本集没有第" + a + "幕"); return; }
-      go(ACTS[a], true);
+      go(ACTS[a], false);
       toast("已精准跳到第" + a + "幕开头");
     };
     if (!subs.length) { ensureSubsThen(jump); return; }
@@ -1388,7 +1390,7 @@ $("dictShow").addEventListener("click", () => {
 $("dictInput").addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
   e.preventDefault();
-  if (revealed) { next(true); $("dictInput").blur(); }
+  if (revealed) { next(false); $("dictInput").blur(); }
   else checkDictation();
 });
 
