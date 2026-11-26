@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 53) {
+    if (m && +m[1] < 54) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -492,15 +492,18 @@ async function genNative(){
   if(cached) return;
   try{
     const model=await ensureAiModel();
-    const res=await cloud.llm.chat.completions.create({
-      model, stream:false,
+    // 云服务 LLM 只支持流式；一次性结果也要 stream:true 后累加
+    let out="";
+    for await (const chunk of cloud.llm.chat.completions.create({
+      model, stream:true,
       messages:[
         {role:"system",content:"你是英语翻译专家。把用户给的英文句子翻译成自然、地道、简洁的中文口语。只输出中文译文一行，不要解释、不要标注、不要复述英文。"},
         {role:"user",content:r.en}
       ]
-    });
-    let out = res && res.choices && res.choices[0] && res.choices[0].message && res.choices[0].message.content;
-    if(!out && res && res.choices && res.choices[0] && res.choices[0].delta) out=res.choices[0].delta.content;
+    })) {
+      const d = chunk.choices && chunk.choices[0] && chunk.choices[0].delta;
+      if (d && d.content) out += d.content;
+    }
     out=(out||"").trim().split("\n")[0];
     if(!out) throw new Error("empty");
     try{ localStorage.setItem(nativeKey(), out); }catch(e){}
