@@ -209,3 +209,13 @@ body.hide-ph .rich .anno .ph{visibility:hidden}
   .card-cn{font-size:17px}.card-en{font-size:15px}
   .dock .hint,.dock .offline-note{display:none}
 }
+/* 词级点读 / 长按菜单 / 错音·单词表 */
+.rich .w{cursor:pointer;border-radius:3px;transition:background .15s}
+.rich .w:hover,.rich .w:active{background:#3d3312;color:#fffdf7}
+.word-menu{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:80;background:#fffdf7;border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:0 6px 24px #0003;display:flex;flex-direction:column;gap:7px;min-width:200px}
+.word-menu .wm-title{font-size:14px;color:#4a463c}
+.word-menu .small{width:100%}
+.word-list{max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:9px;padding:6px}
+.wl-row{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid #eee9d8;font-size:14px;flex-wrap:wrap}
+.wl-row:last-child{border-bottom:none}
+.wl-row b{color:var(--gold);font-size:15px}
