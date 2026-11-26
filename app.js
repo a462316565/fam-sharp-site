@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 61) {
+    if (m && +m[1] < 62) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -18,7 +18,7 @@ const CACHE_NAME = "fam-sharp-ep5-v1";
    与视频 partBase 同理——未配时回退站点相对路径，随时可关。 */
 /* 用 commit hash 固定版本：@main 分支对已更新文件会缓存 12h+ 不刷新，
    commit hash 是永久缓存且立即生效（每次数据更新后改这里 + 上传数据即可）。 */
-const DATA_BASE = "https://cdn.jsdelivr.net/gh/a462316565/fam-sharp-parts@7c48a15cf64e0ddf2d66a35ce0d60846b2b103aa/data";
+const DATA_BASE = "https://cdn.jsdelivr.net/gh/a462316565/fam-sharp-parts@dbfad458a7cbfcf6f76c119a7ec4066589913c80/data";
 function dataURL(rel) {
   if (!DATA_BASE) return rel;
   const name = (rel || "").split("/").pop();   // 只取文件名，统一映射到 CDN 的 data/ 目录
@@ -473,64 +473,38 @@ $("oneBtn").addEventListener("click", () => {
 
 /* ---------- 地道翻译 / 直译 切换 ---------- */
 let nativeMode = false;   // false=直译(默认) / true=地道翻译
-function nativeKey(){ return "fam_native_" + ep.ep + "_" + cur; }
+let nativeData = null, nativeEp = 0, nativeLoading = false;
+function nativeUrl(){ return dataURL("data/native" + (ep.ep===5 ? "" : ep.ep) + ".json"); }
+async function loadNative(){
+  if(nativeEp===ep.ep && nativeData) return nativeData;
+  if(nativeLoading) return null;
+  nativeLoading=true;
+  try{
+    const r=await fetch(nativeUrl(),{cache:"reload"});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const arr=await r.json();
+    nativeData={}; (arr||[]).forEach(x=>{ nativeData[x.i]=x.cn; });
+    nativeEp=ep.ep;
+    return nativeData;
+  }catch(e){ return null; }
+  finally{ nativeLoading=false; }
+}
 function showNativeLine(){
   const line=$("nativeLine"); if(!line) return;
   if(!nativeMode || cur<0){ line.classList.add("hidden"); line.textContent=""; return; }
-  const r=subs[cur]; if(!r) return;
-  const cached=(()=>{try{return localStorage.getItem(nativeKey())}catch(e){return null}})();
   line.classList.remove("hidden");
-  line.innerHTML = cached
-    ? '<b>地道：</b>'+esc(cached)
-    : '<b>地道：</b><span class="msg">生成中…</span>';
+  const d=nativeData && nativeData[cur];
+  if(d){ line.innerHTML='<b>地道：</b>'+esc(d); }
+  else if(nativeLoading){ line.innerHTML='<b>地道：</b><span class="msg">加载中…</span>'; }
+  else { line.innerHTML='<b>地道：</b><span class="msg">这句暂无地道译文</span>'; }
 }
-async function genNative(){
-  if(!session){ toast("地道翻译需要先登录（点底部登录）"); return; }
-  const r=subs[cur]; if(!r) return;
-  const cached=(()=>{try{return localStorage.getItem(nativeKey())}catch(e){return null}})();
-  nativeMode=true; showNativeLine();
-  if(cached) return;
-  try{
-    const model=await ensureAiModel();
-    // 云服务 LLM 只支持流式；一次性结果也要 stream:true 后累加
-    let out="";
-    for await (const chunk of cloud.llm.chat.completions.create({
-      model, stream:true,
-      messages:[
-        {role:"system",content:"你是英语翻译专家。把用户给的英文句子翻译成自然、地道、简洁的中文口语。只输出中文译文一行，不要解释、不要标注、不要复述英文。"},
-        {role:"user",content:r.en}
-      ]
-    })) {
-      const d = chunk.choices && chunk.choices[0] && chunk.choices[0].delta;
-      if (d && d.content) out += d.content;
-    }
-    out=(out||"").trim().split("\n")[0];
-    if(!out) throw new Error("empty");
-    try{ localStorage.setItem(nativeKey(), out); }catch(e){}
-    if(nativeMode) showNativeLine();
-  }catch(e){
-    if(nativeMode){
-      const line=$("nativeLine");
-      if(line){
-        line.innerHTML='<b>地道：</b><span class="ai-err">生成失败，请重试</span>';
-        // 失败提示几秒后自动收起，不一直挂着
-        setTimeout(()=>{ if(nativeMode && line.textContent.includes("生成失败")){ nativeMode=false; showNativeLine(); if($("nativeBtn")){ $("nativeBtn").textContent="地道翻译"; $("nativeBtn").classList.remove("active"); } } }, 3500);
-      }
-    }
-  }
-}
-if($("nativeBtn")) $("nativeBtn").onclick = ()=>{
+if($("nativeBtn")) $("nativeBtn").onclick = async ()=>{
   if(!subs.length || cur<0) return;
-  // 未登录且该句无缓存：先提示登录，不要切进"生成中"卡住
-  if(!session){
-    let hasCache=false; try{ hasCache=!!localStorage.getItem(nativeKey()); }catch(e){}
-    if(!hasCache){ toast("地道翻译需要先登录（点底部登录）"); $("authModal").classList.remove("hidden"); return; }
-  }
   nativeMode = !nativeMode;
   $("nativeBtn").textContent = nativeMode ? "直译" : "地道翻译";
   $("nativeBtn").classList.toggle("active", nativeMode);
   showNativeLine();
-  if(nativeMode) genNative();
+  if(nativeMode && (!nativeData || nativeEp!==ep.ep)){ await loadNative(); showNativeLine(); }
 };
 
 /* ---------- 点单词从该词播放 / 长按加入错音·单词表 ---------- */
@@ -1337,6 +1311,7 @@ async function refreshStorageInfo() {
 }
 async function switchEpisode(e) {
   lockRenderIdx = -1;
+  nativeData = null; nativeEp = 0;   // 切集重置地道译文缓存
   if (!e.ready || e.ep === ep.ep) { $("epModal").classList.add("hidden"); return; }
   $("epModal").classList.add("hidden");   // 立刻收起，点「看这课」马上有反应
   toast(`正在切换到第${e.ep}集…`);
