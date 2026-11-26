@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 49) {
+    if (m && +m[1] < 50) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -133,6 +133,7 @@ let noteTimer = null, saveSeq = 0;
 let oneShot = 0, needRewind = true, internalPause = false;
 let lockRenderIdx = -1; // 放一句就停后：强制文字停在本句，不被 timeupdate/seeked 重算到下一句
 let dictIdx = -1, revealed = false, ACTS = {};
+let answerMode = "both";  // 看答案模式：both=带英文(中英对照) / en=仅英文(藏中文)
 let seekPending = false; // seek 未完成期间冻结渲染，避免 timeupdate 拿旧位置把画面刷回原句
 /* 精修意群排版 */
 let richAll = null, richCur = [];          // rich.json[集号] -> [{i,units,marks}]
@@ -248,7 +249,10 @@ function renderRich(i){
 }
 function setRichRevealed(on){
   const box=$("richBox");
-  if(box) box.classList.toggle('masked', !on);
+  if(box){
+    box.classList.toggle('masked', !on);
+    box.classList.toggle('en-only', !!(on && answerMode === "en"));
+  }
 }
 function applyRichFont(){
   const f=FONT[fontTier];
@@ -303,6 +307,8 @@ const DICT_HINT = "听当前句的音频，输入你听到的英文再点「确�
 function resetDict() {
   revealed = false;
   setRichRevealed(false);
+  if ($("showBoth")) $("showBoth").classList.remove("active");
+  if ($("showEnOnly")) $("showEnOnly").classList.remove("active");
   $("dictInput").value = "";
   const f = $("dictFb");
   f.className = "dict-fb";
@@ -1480,6 +1486,8 @@ function checkDictation() {
   if (!issues.length) {
     revealed = true;
     setRichRevealed(true);
+    $("showBoth").classList.toggle("active", answerMode==="both");
+    $("showEnOnly").classList.toggle("active", answerMode==="en");
     const optSkipped = ops.filter(o => o.t === "del" && o.kind === "opt").length;
     renderDictFb([], ops, Twords, optSkipped);
   } else {
@@ -1487,25 +1495,31 @@ function checkDictation() {
   }
 }
 $("dictCheck").addEventListener("click", checkDictation);
-$("dictShow").addEventListener("click", () => {
+function revealAnswer(mode){
   const r = subs[cur]; if (!r) return;
+  answerMode = mode;
   revealed = true;
   setRichRevealed(true);
+  $("showBoth").classList.toggle("active", mode==="both");
+  $("showEnOnly").classList.toggle("active", mode==="en");
   const input = $("dictInput").value.trim();
   const f = $("dictFb");
   const hasRich = !!(richCur.find(x=>x.i===cur) || {}).units;
+  const modeWord = mode==="en" ? "（仅英文）" : "（带英文）";
   if (input) {
     const Utoks = (input.match(/[A-Za-z0-9']+/g) || []).map(normTok);
     const Twords = getEnWords(r);
     const ops = diffTokens(Utoks, Twords, matchWord);
     renderDictFb(analyzeDict(ops, Utoks, Twords), ops, Twords);
-    f.innerHTML += `<div class="fb-line">答案已在上方亮出，对照一下，再点「重放」听两遍加深印象。</div>`;
+    f.innerHTML += `<div class="fb-line">${modeWord}答案已在上方亮出，对照一下，再点「重放」听两遍加深印象。</div>`;
   } else {
     f.className = "dict-fb bad";
-    f.innerHTML = `答案已在上方亮出。点「重放」听两遍，再自己输入试试。`
+    f.innerHTML = modeWord+`答案已在上方亮出。点「重放」听两遍，再自己输入试试。`
       + (hasRich ? '' : `<div class="dict-diff">${r.enHtml || nl(r.en)}</div>`);
   }
-});
+}
+$("showBoth").addEventListener("click", ()=>revealAnswer("both"));
+$("showEnOnly").addEventListener("click", ()=>revealAnswer("en"));
 $("dictInput").addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
   e.preventDefault();
