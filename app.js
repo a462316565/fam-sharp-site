@@ -45,8 +45,12 @@ function swReady() {
   _swReady = new Promise(res => {
     if (!("serviceWorker" in navigator)) return res(false);
     if (navigator.serviceWorker.controller) return res(true);
-    const t = setTimeout(() => res(false), 6000);
-    navigator.serviceWorker.addEventListener("controllerchange", () => { clearTimeout(t); res(true); }, { once: true });
+    let done = false;
+    const finish = (v) => { if (done) return; done = true; clearInterval(poll); clearTimeout(t); res(v); };
+    // 轮询兜底：controllerchange 可能在监听前就触发过，必须以实际 controller 为准
+    const poll = setInterval(() => { if (navigator.serviceWorker.controller) finish(true); }, 200);
+    const t = setTimeout(() => finish(!!navigator.serviceWorker.controller), 8000);
+    navigator.serviceWorker.addEventListener("controllerchange", () => finish(true), { once: true });
   });
   return _swReady;
 }
