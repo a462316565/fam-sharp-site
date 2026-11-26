@@ -1,4 +1,5 @@
 const CACHE = "fam-sharp-ep5-v1";
+/* build 2026-11-26 10:10: 清坏mp4缓存 + Range206 + getEps走CDN */
 /* build 2026-11-24 10:35: 修复手机端旧缓存（styles.css?v=21 / app.js?v=21 强制新版本） */
 /* install 时对带版本号的资源也强刷，确保 index.html 一更新，CSS/JS 立刻跟新 */
 /* build 2026-11-23 23:35: 听写遮罩下音标保持显示 + 下载进度流式累计修复 */
@@ -27,12 +28,24 @@ self.addEventListener("activate", (e) => {
     await Promise.all(
       keys.filter(k => k.startsWith("fam-sharp-ep5-") && k !== CACHE).map(k => caches.delete(k))
     );
-    // 只清「字幕/精修数据」的旧缓存条目，视频整片与分片一律保留，不用重新下载
+    // 清「字幕/精修数据」旧缓存 + 清掉 mp4 的坏缓存（404/0字节/非206）
+    // 好的整片视频一律保留，不用重新下载
     const c = await caches.open(CACHE);
     const reqs = await c.keys();
     await Promise.all(reqs
       .filter(r => /\/data\/[^/]+\.json($|\?)/.test(r.url))
       .map(r => c.delete(r)));
+    await Promise.all(reqs
+      .filter(r => r.url.endsWith(".mp4"))
+      .map(async r => {
+        try {
+          const resp = await c.match(r);
+          // 只删真正坏的：状态非200 或 体积过小（<1MB 的必是404页/残缺）
+          if (!resp || resp.status !== 200) { await c.delete(r); return; }
+          const blob = await resp.blob();
+          if (blob.size < 1048576) await c.delete(r);
+        } catch (err) { /* 读不出来先保留，交给 fetch 分支再校验 */ }
+      }));
     await self.clients.claim();
   })());
 });
