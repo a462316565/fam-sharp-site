@@ -184,9 +184,10 @@ function wordHtml(txt, charStart, cn, idx){
   for(const p of parts){
     if(!p){ continue; }
     if(/^\s+$/.test(p)){ out += p; pos += p.length; continue; }
-    // 以该 token 在整句中的绝对起点，从整句英文里取完整单词（供 data 使用）
+    // 以该字符在整句中的位置，向前找到词首、向后找到词尾，得到完整单词（跨 mark 切片也一致）
     const en = window.__richEn || '';
     let ws=pos, we=pos;
+    while(ws>0 && /[A-Za-z0-9']/.test(en[ws-1])) ws--;
     while(we<en.length && /[A-Za-z0-9']/.test(en[we])) we++;
     const whole = (we>ws) ? en.slice(ws,we) : p.replace(/^[^A-Za-z0-9']+|[^A-Za-z0-9']+$/g,'');
     const clean = (whole||p).replace(/^[^A-Za-z0-9']+|[^A-Za-z0-9']+$/g,'');
