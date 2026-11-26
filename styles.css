@@ -236,3 +236,6 @@ body.hide-ph .rich .anno .ph{visibility:hidden}
 /* 听写框移到幕按钮行后：整行显示 */
 .act-bar{flex-wrap:wrap;row-gap:8px}
 .act-bar .dict-row{flex-basis:100%;margin-top:0;width:100%}
+/* 顶部只放听写输入框，按钮组留在句子卡片 */
+.act-bar .dict-row.mini-row{flex-basis:100%;margin-top:0;width:100%}
+.act-bar .dict-row.mini-row input{width:100%}
