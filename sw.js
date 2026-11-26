@@ -106,7 +106,12 @@ async function serveFromParts(req, pathname, cache) {
   }
 
   // 未下齐：边播边从网络拉分片（顺便写进缓存，之后天然断点续传）
-  let idx = 0;
+  // 关键：浏览器带 Range 请求时必须回 206 + Content-Range，否则安卓/Edge 判 Format error
+  const startByte = m ? Number(m[1]) : 0;
+  const startIdx = Math.min(Math.floor(startByte / pl), e.parts - 1);
+  const skipInPart = startByte - startIdx * pl;
+  let idx = startIdx;
+  let sent = 0;
   const stream = new ReadableStream({
     async pull(ctrl) {
       if (idx >= e.parts) { ctrl.close(); return; }
@@ -121,14 +126,37 @@ async function serveFromParts(req, pathname, cache) {
         } catch (err) { ctrl.close(); return; }
       }
       const reader = pr.body.getReader();
+      let partPos = 0;
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        ctrl.enqueue(value);
+        let chunk = value;
+        if (idx === startIdx && skipInPart > 0 && partPos + value.byteLength <= skipInPart) {
+          partPos += value.byteLength; continue;
+        }
+        if (idx === startIdx && skipInPart > partPos && skipInPart < partPos + value.byteLength) {
+          chunk = value.slice(skipInPart - partPos);
+        }
+        if (m && m[2] && sent + chunk.byteLength > Number(m[2]) - startByte + 1) {
+          chunk = chunk.slice(0, Number(m[2]) - startByte + 1 - sent);
+        }
+        if (chunk.byteLength) { ctrl.enqueue(chunk); sent += chunk.byteLength; }
+        partPos += value.byteLength;
       }
       idx++;
     }
   });
+  if (m) {
+    const end = m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
+    return new Response(stream, {
+      status: 206,
+      headers: {
+        "Content-Type": "video/mp4",
+        "Content-Range": `bytes ${startByte}-${end}/${size}`,
+        "Accept-Ranges": "bytes"
+      }
+    });
+  }
   return new Response(stream, {
     status: 200,
     headers: { "Content-Type": "video/mp4", "Accept-Ranges": "bytes" }
