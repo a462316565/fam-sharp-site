@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <link rel="apple-touch-icon" sizes="120x120" href="icons/apple-touch-icon-iphone.png">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="styles.css?v=55">
+<link rel="stylesheet" href="styles.css?v=56">
 </head>
 <body>
 <main class="wrap">
@@ -52,7 +52,7 @@
       <div class="dict-row">
         <input id="dictInput" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="听写：输入你听到的英文">
         <button id="dictCheck" class="ctrl primary">确认</button>
-        <button id="answerModeBtn" class="ctrl" title="点击切换：带英文 / 仅英文">带英文</button>
+        <button id="answerModeBtn" class="ctrl" title="点击切换：仅中文 / 带英文">仅中文</button>
         <button id="nativeBtn" class="ctrl" title="点击切换：地道翻译 / 直译">地道翻译</button>
         <button id="aiBtn" class="ctrl">问AI</button>
         <button id="favBtn" class="ctrl fav" title="收藏本句与错误原因到笔记">★收藏</button>
@@ -85,7 +85,7 @@
     </section>
 
     <div class="foot">
-      <span class="foot-brand">走遍美国精听 <span id="epLabel" class="ep">第5集 · The Right Magic</span><span class="ver">v55 地道修复</span></span>
+      <span class="foot-brand">走遍美国精听 <span id="epLabel" class="ep">第5集 · The Right Magic</span><span class="ver">v56 按钮模式</span></span>
       <span id="dlPanel" class="dl-panel hidden"></span>
       <button id="epBtn" class="pill">选课</button>
       <button id="installBtn" class="pill hidden">安装到手机</button>
@@ -198,6 +198,6 @@
   };
   const cloud = WorkBuddyCloud.createWorkBuddyCloud(publicConfig);
 </script>
-<script src="app.js?v=55" defer></script>
+<script src="app.js?v=56" defer></script>
 </body>
 </html>
