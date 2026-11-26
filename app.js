@@ -54,9 +54,62 @@ function swReady() {
   });
   return _swReady;
 }
-async function setVideoSrc(src) {
+let _blobUrl = null;
+/* 从手机本地缓存合成完整视频，用 blob: URL 直接播。
+   这条路不依赖 Service Worker——微信/QQ 内置浏览器 SW 常失效，视频请求直达站点会 404。
+   已下载的视频就用它，未下载才回退 SW 直供。 */
+async function tryBlobFromCache(e) {
+  if (!("caches" in window)) return false;
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    const blobs = [];
+    // 优先：已合成的整片
+    const whole = await cache.match(videoURL(e), { ignoreSearch: true });
+    if (whole && whole.ok) {
+      const b = await whole.blob();
+      if (b.size > 1048576) blobs.push(b);
+    }
+    // 否则：拼分片（先按当前 partKey 精确取；取不到则扫描缓存里同集的所有分片）
+    if (!blobs.length && e.parts) {
+      for (let i = 0; i < e.parts; i++) {
+        const r = await cache.match(partKey(e, i));
+        if (r) blobs.push(await r.blob());
+      }
+      if (blobs.length !== e.parts) {
+        // 兼容旧版本缓存：扫描所有 key，挑文件名以 epN 开头的 pXX
+        const pd = e.partDir || ("ep" + e.ep);
+        const keys = await cache.keys();
+        const found = keys
+          .filter(r => /\/p\d{2}$/.test(r.url) && r.url.includes(pd))
+          .sort((a, b) => a.url.localeCompare(b.url));
+        if (found.length >= e.parts) {
+          blobs.length = 0;
+          for (const k of found.slice(0, e.parts)) {
+            const r = await cache.match(k);
+            if (r) blobs.push(await r.blob());
+          }
+        }
+      }
+      if (blobs.length !== e.parts) return false;
+    }
+    if (!blobs.length) return false;
+    const merged = blobs.length === 1 ? blobs[0] : new Blob(blobs, { type: "video/mp4" });
+    if (_blobUrl) URL.revokeObjectURL(_blobUrl);
+    _blobUrl = URL.createObjectURL(merged);
+    video.src = _blobUrl;
+    video.load();
+    return true;
+  } catch (err) { return false; }
+}
+async function setVideoSrc(e) {
+  const src = typeof e === "string" ? e : (e && e.video) || "";
+  if (!src) return;
+  // 第一优先：本地已下载 → blob 直播（微信里也能用）
+  const epObj = (typeof e === "object" && e) ? e : (typeof EPS !== "undefined" ? EPS.find(x => x.video === src) : null);
+  if (epObj && await tryBlobFromCache(epObj)) return;
+  // 回退：等 SW 接管后用站点相对路径（SW 从 CDN 分片直供）
   await swReady();
-  // 无条件设置并 load：即使属性相同，首次也必须 load 一次（HTML 里已移除 src，全靠这里）
+  if (_blobUrl) { URL.revokeObjectURL(_blobUrl); _blobUrl = null; }
   if (video.getAttribute("src") !== src) video.setAttribute("src", src);
   video.load();
 }
@@ -1022,7 +1075,7 @@ async function switchEpisode(e) {
     // 立刻清掉上一集的精修，防止「新字幕+旧精修」串台（中文配错英文）
     richCur = []; richOkEp = -1; subs = [];
     $("epLabel").textContent = `第${e.ep}集 · ${e.title}`;
-    setVideoSrc(e.video);
+    setVideoSrc(e);
     notes = {}; aiForIdx = -1; aiHist = [];
     cur = -1; dictIdx = -1; needRewind = true;
     if (oneShot >= 0) oneShot = 0;
@@ -1524,7 +1577,7 @@ async function loadSubs() {
       ep = { ep: __prog.ep, title: t, video: v, subs: __prog.ep===5?"data/subtitles.json":"data/ep"+__prog.ep+".json", ready: true,
              parts: pi[0], partDir: pd[__prog.ep] || ("ep"+__prog.ep),
              size: pi[1], partLen: 8388608 };
-      setVideoSrc(ep.video);
+      setVideoSrc(ep);
       $("epLabel").textContent = `第${ep.ep}集 · ${ep.title}`;
     }
   }
@@ -1552,8 +1605,8 @@ async function loadSubs() {
     if (last) {
       const srcChanged = last.video !== ep.video;
       ep = last;
-      if (srcChanged) { setVideoSrc(ep.video); }
-      else setVideoSrc(ep.video);
+      if (srcChanged) { setVideoSrc(ep); }
+      else setVideoSrc(ep);
       $("epLabel").textContent = `第${ep.ep}集 · ${ep.title}`;
     } else if (!EPS.find(x => x.ep === ep.ep)) {
       // 清单里没有当前集，保留上面推断出来的配置
@@ -1562,7 +1615,7 @@ async function loadSubs() {
   $("epLabel").textContent = `第${ep.ep}集 · ${ep.title}`;
   // 兜底：无论上面哪个分支，都要确保 SW 就绪后把当前集的视频挂上并 load
   // （新用户无进度记录时 last 找不到，必须在这里补上，否则 video 永远是空 src）
-  setVideoSrc(ep.video);
+  setVideoSrc(ep);
   await loadSubs();
   buildActs();
   render(true);
