@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 55) {
+    if (m && +m[1] < 56) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -133,7 +133,7 @@ let noteTimer = null, saveSeq = 0;
 let oneShot = 0, needRewind = true, internalPause = false;
 let lockRenderIdx = -1; // 放一句就停后：强制文字停在本句，不被 timeupdate/seeked 重算到下一句
 let dictIdx = -1, revealed = false, ACTS = {};
-let answerMode = "both";  // 看答案模式：both=带英文(中英对照) / en=仅英文(藏中文)
+let answerMode = "cn";    // 答案模式：cn=仅中文(听写默认,藏英文) / both=带英文(中英都显示)
 let seekPending = false; // seek 未完成期间冻结渲染，避免 timeupdate 拿旧位置把画面刷回原句
 /* 精修意群排版 */
 let richAll = null, richCur = [];          // rich.json[集号] -> [{i,units,marks}]
@@ -250,8 +250,8 @@ function renderRich(i){
 function setRichRevealed(on){
   const box=$("richBox");
   if(box){
-    box.classList.toggle('masked', !on);
-    box.classList.toggle('en-only', !!(on && answerMode === "en"));
+    box.classList.toggle('masked', !on);   // masked=藏英文，只留中文（仅中文模式）
+    box.classList.remove('en-only');
   }
 }
 function applyRichFont(){
@@ -307,9 +307,9 @@ function render(force = false) {
 const DICT_HINT = "听当前句的音频，输入你听到的英文再点「确认」；标点、大小写、删除线的弱读字母都判对。";
 function resetDict() {
   revealed = false;
-  answerMode = "both";   // 切句重置为带英文，避免点词后标签/状态不一致
+  answerMode = "cn";     // 切句回到听写默认：仅中文（藏英文）
   setRichRevealed(false);
-  if ($("answerModeBtn")) { $("answerModeBtn").textContent = "带英文"; $("answerModeBtn").classList.remove("active"); }
+  if ($("answerModeBtn")) { $("answerModeBtn").textContent = "仅中文"; $("answerModeBtn").classList.remove("active"); }
   $("dictInput").value = "";
   const f = $("dictFb");
   f.className = "dict-fb";
@@ -1568,8 +1568,9 @@ function checkDictation() {
   const issues = analyzeDict(ops, Utoks, Twords);
   if (!issues.length) {
     revealed = true;
+    answerMode = "both";
     setRichRevealed(true);
-    if ($("answerModeBtn")) $("answerModeBtn").textContent = answerMode==="en" ? "仅英文" : "带英文";
+    if ($("answerModeBtn")) { $("answerModeBtn").textContent = "带英文"; $("answerModeBtn").classList.add("active"); }
     const optSkipped = ops.filter(o => o.t === "del" && o.kind === "opt").length;
     renderDictFb([], ops, Twords, optSkipped);
   } else {
@@ -1580,28 +1581,30 @@ $("dictCheck").addEventListener("click", checkDictation);
 function revealAnswer(mode){
   const r = subs[cur]; if (!r) return;
   answerMode = mode;
-  revealed = true;
-  setRichRevealed(true);
-  if ($("answerModeBtn")) { $("answerModeBtn").textContent = mode==="en" ? "仅英文" : "带英文"; $("answerModeBtn").classList.toggle("active", mode==="en"); }
+  revealed = (mode === "both");           // 带英文=显示英文；仅中文=藏英文
+  setRichRevealed(revealed);
+  if ($("answerModeBtn")) {
+    $("answerModeBtn").textContent = mode==="both" ? "带英文" : "仅中文";
+    $("answerModeBtn").classList.toggle("active", mode==="both");
+  }
+  if (mode === "cn") { $("dictFb").textContent=""; $("dictFb").className="dict-fb"; return; }
   const input = $("dictInput").value.trim();
   const f = $("dictFb");
   const hasRich = !!(richCur.find(x=>x.i===cur) || {}).units;
-  const modeWord = mode==="en" ? "（仅英文）" : "（带英文）";
   if (input) {
     const Utoks = (input.match(/[A-Za-z0-9']+/g) || []).map(normTok);
     const Twords = getEnWords(r);
     const ops = diffTokens(Utoks, Twords, matchWord);
     renderDictFb(analyzeDict(ops, Utoks, Twords), ops, Twords);
-    f.innerHTML += `<div class="fb-line">${modeWord}答案已在上方亮出，对照一下，再点「重放」听两遍加深印象。</div>`;
+    f.innerHTML += `<div class="fb-line">答案已在上方亮出，对照一下，再点「重放」听两遍加深印象。</div>`;
   } else {
     f.className = "dict-fb bad";
-    f.innerHTML = modeWord+`答案已在上方亮出。点「重放」听两遍，再自己输入试试。`
+    f.innerHTML = `答案已在上方亮出。点「重放」听两遍，再自己输入试试。`
       + (hasRich ? '' : `<div class="dict-diff">${r.enHtml || nl(r.en)}</div>`);
   }
 }
 $("answerModeBtn").addEventListener("click", ()=>{
-  // 单次点击在两种模式间切换
-  revealAnswer(answerMode==="both" ? "en" : "both");
+  revealAnswer(answerMode==="both" ? "cn" : "both");
 });
 $("dictInput").addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
