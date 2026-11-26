@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <link rel="apple-touch-icon" sizes="120x120" href="icons/apple-touch-icon-iphone.png">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="styles.css?v=48">
+<link rel="stylesheet" href="styles.css?v=49">
 </head>
 <body>
 <main class="wrap">
@@ -83,17 +83,50 @@
     </section>
 
     <div class="foot">
-      <span class="foot-brand">走遍美国精听 <span id="epLabel" class="ep">第5集 · The Right Magic</span><span class="ver">v48 切句静音</span></span>
+      <span class="foot-brand">走遍美国精听 <span id="epLabel" class="ep">第5集 · The Right Magic</span><span class="ver">v49 点读加词</span></span>
       <span id="dlPanel" class="dl-panel hidden"></span>
       <button id="epBtn" class="pill">选课</button>
       <button id="installBtn" class="pill hidden">安装到手机</button>
       <button id="offlineBtn" class="pill">检查离线</button>
+      <button id="misproBtn" class="pill">错音表</button>
+      <button id="wordBtn" class="pill">单词表</button>
       <button id="authBtn" class="pill">登录同步笔记</button>
     </div>
     <section id="favBar" class="fav-bar hidden">
       <div class="fav-head"><span class="fav-label">本句收藏与笔记</span><button id="favDel" class="mini" title="删除本句的收藏笔记">删除本句</button></div>
       <div id="favChips" class="fav-list"></div>
     </section>
+  </div>
+</div>
+
+<div id="wordMenu" class="word-menu hidden">
+  <div class="wm-title">单词：<b id="wordMenuWord"></b></div>
+  <button id="wordMenuAddMispro" class="small">添加错音</button>
+  <button id="wordMenuAddWord" class="small">添加单词</button>
+  <button id="wordMenuCancel" class="small">取消</button>
+</div>
+
+<div id="misproModal" class="modal hidden">
+  <div class="modal-box wide">
+    <h3>错音表 <span class="msg" id="misproCount"></span></h3>
+    <p class="muted">长按句子里的单词 → 添加错音。点列表可删。</p>
+    <div id="misproList" class="word-list"></div>
+    <div class="row" style="margin-top:10px">
+      <button id="exportMispro" class="small primary">一键导出 TXT（英文 中文）</button>
+      <button id="closeMispro" class="small">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div id="wordModal" class="modal hidden">
+  <div class="modal-box wide">
+    <h3>单词表 <span class="msg" id="wordCount"></span></h3>
+    <p class="muted">长按句子里的单词 → 添加单词。点列表可删。</p>
+    <div id="wordListBox" class="word-list"></div>
+    <div class="row" style="margin-top:10px">
+      <button id="exportWord" class="small primary">一键导出 TXT（英文 中文）</button>
+      <button id="closeWord" class="small">关闭</button>
+    </div>
   </div>
 </div>
 
@@ -162,6 +195,6 @@
   };
   const cloud = WorkBuddyCloud.createWorkBuddyCloud(publicConfig);
 </script>
-<script src="app.js?v=48" defer></script>
+<script src="app.js?v=49" defer></script>
 </body>
 </html>
