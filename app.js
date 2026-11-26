@@ -37,6 +37,23 @@ function writeDataCache(rel, val) {
 let EPS = [];
 let ep = { ep: 5, title: "The Right Magic", video: "media/ep5v2.mp4", subs: "data/subtitles.json", ready: true };
 function videoURL(e) { return new URL(e.video, location.href).href; }
+/* 视频 src 必须等 SW 接管后再设：站点本身没有 mp4 实体，全靠 SW 从 CDN 分片直供。
+   若在 SW 激活前赋 src，浏览器会直接请求站点 mp4 → GitHub Pages 返回 404 → Format error。 */
+let _swReady = null;
+function swReady() {
+  if (_swReady) return _swReady;
+  _swReady = new Promise(res => {
+    if (!("serviceWorker" in navigator)) return res(false);
+    if (navigator.serviceWorker.controller) return res(true);
+    const t = setTimeout(() => res(false), 6000);
+    navigator.serviceWorker.addEventListener("controllerchange", () => { clearTimeout(t); res(true); }, { once: true });
+  });
+  return _swReady;
+}
+async function setVideoSrc(src) {
+  await swReady();
+  if (video.getAttribute("src") !== src) { video.src = src; video.load(); }
+}
 
 const video = $("video");
 let subs = [], cur = -1, notes = {}, session = null, pending = null;
@@ -999,7 +1016,7 @@ async function switchEpisode(e) {
     // 立刻清掉上一集的精修，防止「新字幕+旧精修」串台（中文配错英文）
     richCur = []; richOkEp = -1; subs = [];
     $("epLabel").textContent = `第${e.ep}集 · ${e.title}`;
-    video.src = e.video; video.load();
+    setVideoSrc(e.video);
     notes = {}; aiForIdx = -1; aiHist = [];
     cur = -1; dictIdx = -1; needRewind = true;
     if (oneShot >= 0) oneShot = 0;
@@ -1501,7 +1518,7 @@ async function loadSubs() {
       ep = { ep: __prog.ep, title: t, video: v, subs: __prog.ep===5?"data/subtitles.json":"data/ep"+__prog.ep+".json", ready: true,
              parts: pi[0], partDir: pd[__prog.ep] || ("ep"+__prog.ep),
              size: pi[1], partLen: 8388608 };
-      video.src = ep.video;
+      setVideoSrc(ep.video);
       $("epLabel").textContent = `第${ep.ep}集 · ${ep.title}`;
     }
   }
@@ -1529,7 +1546,8 @@ async function loadSubs() {
     if (last) {
       const srcChanged = last.video !== ep.video;
       ep = last;
-      if (srcChanged) { video.src = ep.video; }
+      if (srcChanged) { setVideoSrc(ep.video); }
+      else setVideoSrc(ep.video);
       $("epLabel").textContent = `第${ep.ep}集 · ${ep.title}`;
     } else if (!EPS.find(x => x.ep === ep.ep)) {
       // 清单里没有当前集，保留上面推断出来的配置
