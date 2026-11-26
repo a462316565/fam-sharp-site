@@ -219,3 +219,7 @@ body.hide-ph .rich .anno .ph{visibility:hidden}
 .wl-row{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid #eee9d8;font-size:14px;flex-wrap:wrap}
 .wl-row:last-child{border-bottom:none}
 .wl-row b{color:var(--gold);font-size:15px}
+/* 看答案两种模式：带英文(中英对照) / 仅英文(藏中文) */
+.dict-row{flex-wrap:wrap}
+.rich.en-only .blk-cn{visibility:hidden}
+.rich.en-only .blk{justify-content:flex-start}
