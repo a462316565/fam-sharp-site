@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 48) {
+    if (m && +m[1] < 49) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -170,8 +170,28 @@ function nl(text) { return (text || "").split(" / ").join("<br>"); }
 
 /* ---------- 精修意群排版（照原书：音标上/英文中/中文下，逐意群对齐） ---------- */
 function richEsc(s){ return (s||"").replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+/* 词级可点：把一段英文按空格切成单词 span，每个词带 data（用于点读/长按加词）。
+   保留调用方的样式 class（弱读/删除线等）包在外层，词 span 只负责交互。 */
+function wordHtml(txt, charStart, cn, idx){
+  if(!txt) return '';
+  // 按空白切，保留空白，保证显示与原文一致
+  const parts = txt.split(/(\s+)/);
+  let out='', pos=charStart;
+  for(const p of parts){
+    if(!p){ continue; }
+    if(/^\s+$/.test(p)){ out += p; pos += p.length; continue; }
+    // 一个 token 可能带标点，去掉首尾标点作为“词”
+    const clean = p.replace(/^[^A-Za-z0-9']+|[^A-Za-z0-9']+$/g,'');
+    const attr = clean
+      ? ' class="w" data-w="'+richEsc(clean)+'" data-cn="'+richEsc(cn||'')+'" data-s="'+pos+'" data-i="'+idx+'"'
+      : ' class="w0"';
+    out += '<span'+attr+'>'+richEsc(p)+'</span>';
+    pos += p.length;
+  }
+  return out;
+}
 /* 渲染单个意群块：英文按 mark 切成带样式段，音标浮在对应字母上方；中文在下方 */
-function richBlockHtml(u, en, marks){
+function richBlockHtml(u, en, marks, idx){
   const a=u.a, b=u.b;
   const bm=marks.filter(m=> m.b>a && m.a<b).sort((x,y)=>x.a-y.a);
   let cuts=[a,b];
@@ -197,9 +217,9 @@ function richBlockHtml(u, en, marks){
     if(withPh.length){
       withPh.forEach(m=>{ if(!window.__phShown) window.__phShown=new Set(); window.__phShown.add(m); });
       const ph=withPh.map(m=>richEsc(m.ph)).join(' ');
-      enHtml+='<span class="anno"><span class="ph">'+ph+'</span><span class="'+cls+'">'+richEsc(txt)+'</span></span>';
+      enHtml+='<span class="anno"><span class="ph">'+ph+'</span><span class="'+cls+'">'+wordHtml(txt,s0,u.cn,idx)+'</span></span>';
     }else{
-      enHtml+='<span class="'+cls+'">'+richEsc(txt)+'</span>';
+      enHtml+='<span class="'+cls+'">'+wordHtml(txt,s0,u.cn,idx)+'</span>';
     }
   }
   return '<span class="blk"><span class="blk-ph"></span>'
@@ -217,7 +237,7 @@ function renderRich(i){
   const en=((subs[i]&&subs[i].en)||'').replace(/\s+/g,' ').trim();
   const marks=r.marks||[];
   window.__phShown=new Set();   // 音标去重：本次渲染内每个 ph mark 只显示一次
-  box.innerHTML='<span class="rich masked" id="richBox">'+r.units.map(u=>richBlockHtml(u,en,marks)).join('')+'</span>';
+  box.innerHTML='<span class="rich masked" id="richBox">'+r.units.map(u=>richBlockHtml(u,en,marks,i)).join('')+'</span>';
 }
 function setRichRevealed(on){
   const box=$("richBox");
@@ -436,6 +456,98 @@ $("oneBtn").addEventListener("click", () => {
   $("oneBtn").classList.add("active");
   toast("已开启放一句就停");
 });
+
+/* ---------- 点单词从该词播放 / 长按加入错音·单词表 ---------- */
+const LS_MISPRO = "fam_mispronunciation";   // 错音列表
+const LS_WORDS  = "fam_wordlist";           // 单词列表
+function loadList(key){ try{ return JSON.parse(localStorage.getItem(key)||"[]"); }catch(e){ return []; } }
+function saveList(key,v){ try{ localStorage.setItem(key,JSON.stringify(v)); }catch(e){ toast("存储已满"); } }
+function addToWordList(kind, w, cn){
+  const key = kind==="mispro" ? LS_MISPRO : LS_WORDS;
+  const list = loadList(key);
+  // 同一集同一词不重复
+  const epn = (typeof ep!=="undefined"&&ep)?ep.ep:0;
+  if(list.some(x=>x.w.toLowerCase()===w.toLowerCase() && x.ep===epn)){
+    toast(kind==="mispro"?"错音表里已有这个词":"单词表里已有这个词"); return;
+  }
+  list.push({w, cn, ep:epn, ts:Date.now()});
+  saveList(key,list);
+  toast((kind==="mispro"?"已加错音表：":"已加单词表：")+w);
+}
+let _wordPressTimer=null, _wordPressEl=null, _wordMoved=false, _wordStartX=0, _wordStartY=0;
+document.addEventListener("pointerdown", (e)=>{
+  const w = e.target.closest(".w");
+  if(!w) return;
+  _wordPressEl=w; _wordMoved=false; _wordStartX=e.clientX; _wordStartY=e.clientY;
+  clearTimeout(_wordPressTimer);
+  _wordPressTimer=setTimeout(()=>{ if(!_wordMoved && _wordPressEl===w) showWordMenu(w); }, 550);
+}, true);
+document.addEventListener("pointermove", (e)=>{
+  if(_wordPressEl && (Math.abs(e.clientX-_wordStartX)>10 || Math.abs(e.clientY-_wordStartY)>10)) _wordMoved=true;
+}, true);
+document.addEventListener("pointerup", ()=>{ clearTimeout(_wordPressTimer); _wordPressEl=null; }, true);
+document.addEventListener("pointercancel", ()=>{ clearTimeout(_wordPressTimer); _wordPressEl=null; }, true);
+// 单击单词：从该词位置播放本句
+document.addEventListener("click", (e)=>{
+  const w = e.target.closest(".w");
+  if(!w) return;
+  if(_wordJustMenu){ _wordJustMenu=false; return; }  // 刚弹过长按菜单，抑制这次点击
+  const i = +w.dataset.i, s = +w.dataset.s;
+  if(!subs[i]) return;
+  // 该词在本句的位置比例 → 时间
+  const r = subs[i];
+  const ratio = Math.max(0, Math.min(0.95, s / Math.max(1,(r.en||"").length)));
+  const t = r.start + (r.end - r.start)*ratio;
+  if(oneShot>=0){ oneShot=i; }
+  lockRenderIdx = -1;
+  go(i, false);          // go 内部会 pause 并 seek 到句首
+  needRewind = false;    // 关键：不让 playCurrent 再拉回句首
+  safeSeek(t);           // 定位到所点单词
+  video.play().catch(()=>{});   // 从该词直接播放
+}, true);
+let _wordJustMenu=false;
+function showWordMenu(w){
+  _wordJustMenu=true; setTimeout(()=>{_wordJustMenu=false;},400);
+  $("wordMenuWord").textContent = w.dataset.w;
+  $("wordMenu").classList.remove("hidden");
+  $("wordMenu").dataset.w = w.dataset.w;
+  $("wordMenu").dataset.cn = w.dataset.cn;
+}
+$("wordMenuAddMispro").onclick = ()=>{ const m=$("wordMenu"); addToWordList("mispro", m.dataset.w, m.dataset.cn); m.classList.add("hidden"); };
+$("wordMenuAddWord").onclick = ()=>{ const m=$("wordMenu"); addToWordList("word", m.dataset.w, m.dataset.cn); m.classList.add("hidden"); };
+$("wordMenuCancel").onclick = ()=>{ $("wordMenu").classList.add("hidden"); };
+// 两个列表页面：渲染 + 导出
+function renderListPage(kind){
+  const key = kind==="mispro" ? LS_MISPRO : LS_WORDS;
+  const list = loadList(key);
+  const box = kind==="mispro" ? $("misproList") : $("wordListBox");
+  const cnt = kind==="mispro" ? $("misproCount") : $("wordCount");
+  if(cnt) cnt.textContent = "("+list.length+")";
+  if(!list.length){ box.innerHTML='<p class="muted">还没有收录单词。长按句子里的单词即可添加。</p>'; return; }
+  box.innerHTML = list.map((x,i)=>'<div class="wl-row"><b>'+richEsc(x.w)+'</b> <span class="muted">'+richEsc(x.cn||'')+'</span>'
+    +' <span class="msg">第'+x.ep+'集</span> <button class="mini" data-del="'+i+'">删</button></div>').join('');
+  box.querySelectorAll("[data-del]").forEach(b=>{
+    b.onclick=()=>{ const arr=loadList(key); arr.splice(+b.dataset.del,1); saveList(key,arr); renderListPage(kind); };
+  });
+}
+function exportList(kind){
+  const key = kind==="mispro" ? LS_MISPRO : LS_WORDS;
+  const list = loadList(key);
+  if(!list.length){ toast("列表是空的"); return; }
+  const text = list.map(x=>x.w+" "+(x.cn||"")).join("\n");
+  const blob = new Blob([text], {type:"text/plain;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download = (kind==="mispro"?"错音表":"单词表")+".txt";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  toast("已导出 "+list.length+" 个词");
+}
+$("misproBtn").onclick = ()=>{ renderListPage("mispro"); $("misproModal").classList.remove("hidden"); };
+$("wordBtn").onclick = ()=>{ renderListPage("word"); $("wordModal").classList.remove("hidden"); };
+$("closeMispro").onclick = ()=>$("misproModal").classList.add("hidden");
+$("closeWord").onclick = ()=>$("wordModal").classList.add("hidden");
+$("exportMispro").onclick = ()=>exportList("mispro");
+$("exportWord").onclick = ()=>exportList("word");
 
 /* 滑动切句 */
 let tx = 0, ty = 0;
