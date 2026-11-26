@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 46) {
+    if (m && +m[1] < 47) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -330,7 +330,7 @@ function endOneShot() {
   oneShot = idx;                // 保留标记，点播放时重听本句
   needRewind = true;
   cur = idx; renderSentence(idx); syncSeek();
-  toast("本句播完，已暂停 · 再点播放重听本句");
+  // 播完自动暂停：不弹提示（用户要求安静）
 }
 /* 字幕未加载时先补载再跳，避免按钮“没反应” */
 function ensureSubsThen(fn) {
