@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 44) {
+    if (m && +m[1] < 45) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -297,12 +297,16 @@ function safeSeek(t) {
 function endOneShot() {
   if (oneShot < 0) return;
   const idx = oneShot;
+  oneShot = -1;                 // 先清标记，避免 seek/timeupdate 重入再触发
   internalPause = true;
   video.pause();
-  internalPause = false;
   const stopAt = Math.max(0, subs[idx].end - 0.03);
   if (Math.abs(video.currentTime - stopAt) > 0.06) safeSeek(stopAt);
-  oneShot = idx;
+  // seek 后浏览器可能自恢复播放，延迟再按一次暂停（双保险）
+  video.pause();
+  setTimeout(() => { if (!video.paused) { internalPause = true; video.pause(); internalPause = false; } }, 60);
+  internalPause = false;
+  oneShot = idx;                // 保留标记，点播放时重听本句
   needRewind = true;
   cur = -1; render(true);
   toast("本句播完，已暂停 · 再点播放重听本句");
@@ -361,10 +365,18 @@ video.addEventListener("loadedmetadata", fmtDur);
 video.addEventListener("durationchange", fmtDur);
 
 let lastTick = 0;
+/* 放一句就停的判定：到达本句 end，或播放位置已经进了下一句（seek 不准/end 标错时兜底） */
+function oneShotShouldStop(t) {
+  if (oneShot < 0 || !subs[oneShot]) return false;
+  if (t >= subs[oneShot].end - 0.03) return true;
+  // 已越过本句进入下一句：说明本句实际已放完（哪怕 end 时间标长了）
+  if (oneShot + 1 < subs.length && t >= subs[oneShot + 1].start - 0.05) return true;
+  return false;
+}
 video.addEventListener("timeupdate", () => {
   lastTick = Date.now();
   const t = video.currentTime;
-  if (oneShot >= 0 && subs[oneShot] && t >= subs[oneShot].end - 0.03) { endOneShot(); return; }
+  if (oneShotShouldStop(t)) { endOneShot(); return; }
   if (!seekPending) render();
   syncSeek();
 });
@@ -374,7 +386,7 @@ setInterval(() => {
   if (Date.now() - lastTick < 1500) return;
   lastTick = Date.now();
   const t = video.currentTime;
-  if (oneShot >= 0 && subs[oneShot] && t >= subs[oneShot].end - 0.03) { endOneShot(); return; }
+  if (oneShotShouldStop(t)) { endOneShot(); return; }
   if (!seekPending) render();
   syncSeek();
 }, 600);
