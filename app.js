@@ -172,20 +172,25 @@ function nl(text) { return (text || "").split(" / ").join("<br>"); }
 function richEsc(s){ return (s||"").replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 /* 词级可点：把一段英文按空格切成单词 span，每个词带 data（用于点读/长按加词）。
    保留调用方的样式 class（弱读/删除线等）包在外层，词 span 只负责交互。 */
+/* 词级可点：按整句英文的单词边界生成 span（跨 mark 切片的词只输出一次完整）。
+   s0/s1 是当前样式片段在整句中的字符范围；用 window.__wordDone 去重。 */
+/* 词级可点：在当前样式片段内按字符位置输出可点片段。
+   同一单词即使被音标 mark 切成多段，也共用同一份 data（词/中文/位置/句号），
+   点任一段都等同点这个完整单词；视觉上仍保留原书的字母级音标高亮。 */
 function wordHtml(txt, charStart, cn, idx){
   if(!txt) return '';
-  // 按空白切，保留空白，保证显示与原文一致
   const parts = txt.split(/(\s+)/);
   let out='', pos=charStart;
   for(const p of parts){
     if(!p){ continue; }
     if(/^\s+$/.test(p)){ out += p; pos += p.length; continue; }
-    // 一个 token 可能带标点，去掉首尾标点作为“词”
-    const clean = p.replace(/^[^A-Za-z0-9']+|[^A-Za-z0-9']+$/g,'');
-    const attr = clean
-      ? ' class="w" data-w="'+richEsc(clean)+'" data-cn="'+richEsc(cn||'')+'" data-s="'+pos+'" data-i="'+idx+'"'
-      : ' class="w0"';
-    out += '<span'+attr+'>'+richEsc(p)+'</span>';
+    // 以该 token 在整句中的绝对起点，从整句英文里取完整单词（供 data 使用）
+    const en = window.__richEn || '';
+    let ws=pos, we=pos;
+    while(we<en.length && /[A-Za-z0-9']/.test(en[we])) we++;
+    const whole = (we>ws) ? en.slice(ws,we) : p.replace(/^[^A-Za-z0-9']+|[^A-Za-z0-9']+$/g,'');
+    const clean = (whole||p).replace(/^[^A-Za-z0-9']+|[^A-Za-z0-9']+$/g,'');
+    out += '<span class="w"'+(clean?' data-w="'+richEsc(clean)+'" data-cn="'+richEsc(cn||'')+'" data-s="'+ws+'" data-i="'+idx+'"':'')+'>'+richEsc(p)+'</span>';
     pos += p.length;
   }
   return out;
@@ -235,6 +240,7 @@ function renderRich(i){
   }
   // rich.json 的 a/b 基于归一化单空格文本；此处须同法归一化，避免双空格导致坐标错位
   const en=((subs[i]&&subs[i].en)||'').replace(/\s+/g,' ').trim();
+  window.__richEn=en; window.__wordDone={idx:i,set:new Set()};
   const marks=r.marks||[];
   window.__phShown=new Set();   // 音标去重：本次渲染内每个 ph mark 只显示一次
   box.innerHTML='<span class="rich masked" id="richBox">'+r.units.map(u=>richBlockHtml(u,en,marks,i)).join('')+'</span>';
