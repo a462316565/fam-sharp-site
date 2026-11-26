@@ -408,11 +408,7 @@ async function restoreAuth() {
   }
   setAuthUI();
 }
-$("wechatLogin").onclick = async () => {
-  const r = await cloud.auth.signInWithOAuth({ provider: "wechat", redirectTo: location.origin });
-  if (r.error) { $("authMsg").textContent = r.error.message || "微信登录暂不可用"; return; }
-  if (r.data && r.data.url) location.assign(r.data.url);
-};
+/* 微信登录在新域名（github.io）回调不在白名单，已移除；保留手机号验证码登录。 */
 $("authBtn").onclick = async () => {
   if (session) {
     if (confirm("退出登录？本地笔记仍保留，云端笔记不会删除。")) {
