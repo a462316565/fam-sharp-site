@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 63) {
+    if (m && +m[1] < 64) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -247,10 +247,12 @@ function renderRich(i){
   window.__phShown=new Set();   // 音标去重：本次渲染内每个 ph mark 只显示一次
   box.innerHTML='<span class="rich masked" id="richBox">'+r.units.map(u=>richBlockHtml(u,en,marks,i)).join('')+'</span>';
 }
+let blindMode = false;
 function setRichRevealed(on){
   const box=$("richBox");
   if(box){
-    box.classList.toggle('masked', !on);   // masked=藏英文，只留中文（仅中文模式）
+    box.classList.toggle('masked', !on || blindMode);   // masked=藏英文
+    box.classList.toggle('blind', blindMode);            // blind=中英全藏，只留音标
     box.classList.remove('en-only');
   }
 }
@@ -1589,6 +1591,13 @@ function revealAnswer(mode){
       + (hasRich ? '' : `<div class="dict-diff">${r.enHtml || nl(r.en)}</div>`);
   }
 }
+$("blindBtn").addEventListener("click", ()=>{
+  blindMode = !blindMode;
+  $("blindBtn").textContent = blindMode ? "显示台词" : "全隐藏";
+  $("blindBtn").classList.toggle("blind-btn-on", blindMode);
+  setRichRevealed(revealed);
+  toast(blindMode ? "盲听模式：中英文已隐藏，只看音标听音" : "已显示台词");
+});
 $("answerModeBtn").addEventListener("click", ()=>{
   revealAnswer(answerMode==="both" ? "cn" : "both");
 });
