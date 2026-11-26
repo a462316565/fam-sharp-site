@@ -52,7 +52,7 @@ self.addEventListener("activate", (e) => {
 
 /* ---------- 分片直供播放：整片不在缓存时，用分片切片/流式响应 ---------- */
 /* 每次读缓存里的最新剧集清单，避免换视频版本后 SW 一直沿用旧配置、分片名对不上 */
-const EPS_CDN = "https://cdn.jsdelivr.net/gh/a462316565/fam-sharp-parts@5406b7780817cc74c15c4ae431a5f51bd455e578/data/episodes.json";
+const EPS_CDN = "https://cdn.jsdelivr.net/gh/a462316565/fam-sharp-parts@066028e165fed201b93de288416e4b139b4adcd6/data/episodes.json";
 async function getEps() {
   // 数据走公共 CDN：先读缓存（app.js 以 CDN URL 为键写入），再兜底主动拉取
   const keys = [EPS_CDN, new URL("data/episodes.json", self.location.href).href];
