@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 43) {
+    if (m && +m[1] < 44) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -273,7 +273,7 @@ function resetDict() {
   $("dictInput").value = "";
   const f = $("dictFb");
   f.className = "dict-fb";
-  f.textContent = DICT_HINT;
+  f.textContent = "";
 }
 function cancelOneShot() {
   if (oneShot < 0) return;
