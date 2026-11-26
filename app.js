@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 57) {
+    if (m && +m[1] < 58) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -18,7 +18,7 @@ const CACHE_NAME = "fam-sharp-ep5-v1";
    与视频 partBase 同理——未配时回退站点相对路径，随时可关。 */
 /* 用 commit hash 固定版本：@main 分支对已更新文件会缓存 12h+ 不刷新，
    commit hash 是永久缓存且立即生效（每次数据更新后改这里 + 上传数据即可）。 */
-const DATA_BASE = "https://cdn.jsdelivr.net/gh/a462316565/fam-sharp-parts@ae5117dff8855bf8e9f1c4b90bed9e3bb73c02ef/data";
+const DATA_BASE = "https://cdn.jsdelivr.net/gh/a462316565/fam-sharp-parts@390996cf3e2abf2e08376db35341137534ed1e34/data";
 function dataURL(rel) {
   if (!DATA_BASE) return rel;
   const name = (rel || "").split("/").pop();   // 只取文件名，统一映射到 CDN 的 data/ 目录
@@ -886,6 +886,7 @@ async function saveNote() {
   if (seq !== saveSeq) return;
   $("noteStatus").textContent = "已同步到云端";
   renderNoteList();
+  renderFavBar();   // 关键：保存成功后立刻刷新主页面下方收藏条，不用重开笔记页
 }
 function renderNoteList() {
   const box = $("noteList"); box.innerHTML = "";
@@ -1015,13 +1016,23 @@ $("noteBtn").onclick = () => {
   if (session) { loadNotes().catch(() => {}); }
   else { renderNoteList(); showNoteText(); toast("未登录：收藏存在本机，可用「导出笔记」备份"); }
 };
-$("closeNote").onclick = () => { clearTimeout(noteTimer); saveNote(); $("noteModal").classList.add("hidden"); };
+$("closeNote").onclick = async () => {
+  clearTimeout(noteTimer);
+  // 先把输入框里的内容落到 notes，立即刷新主页面，关页就能看到
+  const text = $("noteText").value;
+  if (cur >= 0) notes[cur] = text;
+  renderFavBar(); renderNoteList();
+  await saveNote();                 // 后台等云端保存完成
+  $("noteModal").classList.add("hidden");
+};
 $("noteText").addEventListener("input", () => {
   clearTimeout(noteTimer);
   $("noteStatus").textContent = "等待输入…";
   noteTimer = setTimeout(async () => {
     const text = $("noteText").value;
     if (cur >= 0) notes[cur] = text;
+    // 立即刷新主页面收藏条，不等云端往返（手写笔记也要一次就出现）
+    renderFavBar(); renderNoteList();
     if (!session) {
       // 未登录：立刻存本地并明确提示，不让状态卡在"等待输入…"
       if (text.trim()) { saveLocalNote(cur, text); $("noteStatus").textContent = "已存本机（登录后可云端同步）"; }
@@ -1614,7 +1625,7 @@ $("dictInput").addEventListener("keydown", (e) => {
 });
 
 /* ---------- 免费问 AI（云服务免密钥大模型） ---------- */
-const AI_SYS = "你是一位教中国英语初学者的英语老师，学生正在精听《走遍美国》系列课程。请用简体中文回答，讲解简洁清楚、适合初学者；需要举例时给简短例句；拆分意群时用『 / 』分隔；不要输出与问题无关的内容。";
+const AI_SYS = "你是精听助手。只输出答案本身，严禁任何开头套话、标题、小标题、复述用户问题、『下面是』『好的』『讲解如下』之类废话。直接给内容：意群用 / 分隔；解释一句话说清；逐词直译严格按英文词序、虚词译出。回答控制在最少字数，不要客套，不要总结，不要 emoji。";
 const AI_CHIPS = [
   ["意群拆分", "请把这句英文按意群拆开（意群之间用 / 分隔），逐个意群解释中文意思，并指出哪里可以连读、弱读。"],
   ["为什么用这个词", "请挑出这句里最关键的一两个词或短语，讲解为什么这里这么用、能不能换成别的说法、区别在哪。"],
@@ -1639,8 +1650,10 @@ function cleanAiOut(t){
     if(!x) return false;
     if(/^\*\*.*\*\*$/.test(x)) return false;          // **标题**
     if(/^#{1,4}\s/.test(x)) return false;                 // # 标题
-    if(/^(请把|请|帮我).{0,80}(拆开|讲解|翻译|直译)/.test(x)) return false; // 复述用户问题
-    if(/^(意群拆分与讲解|语法讲解|为什么用这个词|逐词直译|地道翻译)/.test(x)) return false;
+    if(/^(请把|请|帮我|麻烦).{0,80}(拆开|讲解|翻译|直译)/.test(x)) return false; // 复述用户问题
+    if(/^(意群拆分与讲解|语法讲解|为什么用这个词|逐词直译|地道翻译|答案如下|讲解如下|以下是|下面是)/.test(x)) return false;
+    if(/^(好的|当然|没问题|收到)[，,。！!\s]*$/.test(x)) return false;      // 单句客套
+    if(/^(作为|我是|我将为您|让我来|很高兴)/.test(x)) return false;
     return true;
   }).join("\n");
 }
