@@ -233,3 +233,6 @@ body.hide-ph .rich .anno .ph{visibility:hidden}
 .rich.blind .blk-en,.rich.blind .blk-cn{visibility:hidden}
 .rich.blind .anno .ph{visibility:visible!important}
 .blind-btn-on{background:#3d3312;color:#fffdf7;border-color:#3d3312}
+/* 听写框移到幕按钮行后：整行显示 */
+.act-bar{flex-wrap:wrap;row-gap:8px}
+.act-bar .dict-row{flex-basis:100%;margin-top:0;width:100%}
