@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f6f1e4">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="走遍美国精听">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icons/apple-touch-icon-ipad76.png">
+<link rel="apple-touch-icon" sizes="167x167" href="icons/apple-touch-icon-ipad.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="120x120" href="icons/apple-touch-icon-iphone.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css?v=41">
+</head>
+<body>
+<main class="wrap">
+  <div class="act-bar" id="actBar">
+    <span class="act-label">跳幕：</span>
+    <button class="act-btn" data-act="1">第一幕</button>
+    <button class="act-btn" data-act="2">第二幕</button>
+    <button class="act-btn" data-act="3">第三幕</button>
+  </div>
+
+  <section class="stage" id="stage">
+    <video id="video" src="media/ep5v2.mp4" playsinline preload="metadata" crossorigin="anonymous"></video>
+    <div class="stage-badges">
+      <span id="actBadge" class="badge">Act 1</span>
+      <span id="offlineBadge" class="badge">在线</span>
+    </div>
+    <div class="video-seek" id="videoSeek">
+      <span class="vtime" id="curTime">0:00</span>
+      <input id="seek" class="seek" type="range" min="0" max="1000" value="0" step="1" aria-label="播放进度">
+      <span class="vtime" id="durTime">0:00</span>
+    </div>
+    <div class="center-play" id="centerPlay">▶</div>
+  </section>
+
+</main>
+
+<div class="dock" id="dock">
+  <div class="dock-inner">
+    <section class="card" id="sentenceCard">
+      <div class="card-head">
+        <span id="sentSp" class="sp">—</span>
+        <span id="sentIdx" class="idx">第 1 句</span>
+        <button id="phToggle" class="ctrl rich-tool active" title="发音标开关">🔤 发音</button>
+        <button id="fontBtn" class="ctrl rich-tool" title="切换字号">A 字号：中</button>
+      </div>
+      <div class="card-cn" id="sentCn">…</div>
+      <div class="dict-row">
+        <input id="dictInput" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="听写：输入你听到的英文">
+        <button id="dictCheck" class="ctrl primary">确认</button>
+        <button id="dictShow" class="ctrl">看答案</button>
+        <button id="aiBtn" class="ctrl">问AI</button>
+        <button id="favBtn" class="ctrl fav" title="收藏本句与错误原因到笔记">★收藏</button>
+      </div>
+      <div id="dictFb" class="dict-fb">听当前句的音频，输入你听到的英文再点「确认」；标点、大小写、删除线的弱读字母都判对。</div>
+      <div class="card-actions">
+        <button id="prevBtn" class="ctrl">‹ 上一句</button>
+        <button id="repeatBtn" class="ctrl">↻ 重放</button>
+        <button id="cardPlayBtn" class="ctrl">▶ 播放</button>
+        <button id="oneBtn" class="ctrl active">▶ 放一句就停</button>
+        <button id="nextBtn" class="ctrl">下一句 ›</button>
+        <button id="noteBtn" class="ctrl primary">笔记</button>
+      </div>
+      <div class="hint">听音写英文 → 确认判对错 → 对了点「下一句」（回车也可）。想问句子就点「问AI」。左滑上一句、右滑下一句，电脑 ← → 键</div>
+    </section>
+
+    <section class="controls">
+      <div class="menu-wrap">
+        <button id="speedBtn" class="big">1.0×</button>
+        <div id="speedPanel" class="panel speed-panel"></div>
+      </div>
+      <button id="downloadBtn" class="big">一键离线下载</button>
+      <button id="redownloadBtn" class="mini hidden">重新下载</button>
+      <div class="offline-note">首次在 Wi‑Fi 下点此按钮后存到手机本地；安装成 App（「安装到手机」）后用桌面图标打开，缓存和进度永久保留，一次下载一劳永逸。不同 App 的缓存互不通用，清理浏览器站点数据会清掉缓存。</div>
+    </section>
+
+    <div class="foot">
+      <span class="foot-brand">走遍美国精听 <span id="epLabel" class="ep">第5集 · The Right Magic</span><span class="ver">v41 EP8-24·Pages</span></span>
+      <span id="dlPanel" class="dl-panel hidden"></span>
+      <button id="epBtn" class="pill">选课</button>
+      <button id="installBtn" class="pill hidden">安装到手机</button>
+      <button id="offlineBtn" class="pill">检查离线</button>
+      <button id="authBtn" class="pill">登录同步笔记</button>
+    </div>
+    <section id="favBar" class="fav-bar hidden">
+      <div class="fav-head"><span class="fav-label">本句收藏与笔记</span><button id="favClear" class="mini">清空全部</button></div>
+      <div id="favChips" class="fav-list"></div>
+    </section>
+  </div>
+</div>
+
+<div id="authModal" class="modal hidden">
+  <div class="modal-box">
+    <h3>登录以同步笔记</h3>
+    <p class="muted">笔记只属于你，登录后自动保存到云端，换手机也能看到。</p>
+    <input id="phone" type="tel" placeholder="手机号">
+    <div class="row"><input id="code" type="text" placeholder="验证码"><button id="sendCode" class="small">获取验证码</button></div>
+    <div class="row"><button id="loginBtn" class="small primary">登录 / 注册</button><button id="wechatLogin" class="small">微信登录</button><button id="closeAuth" class="small">取消</button></div>
+    <div id="authMsg" class="msg"></div>
+  </div>
+</div>
+
+<div id="noteModal" class="modal hidden">
+  <div class="modal-box wide">
+    <h3>第 <span id="noteIdx">1</span> 句笔记</h3>
+    <div id="noteSent" class="note-sent"></div>
+    <textarea id="noteText" rows="7" placeholder="写下你的笔记…"></textarea>
+    <div class="row"><span id="noteStatus" class="msg">未修改</span><button id="delNote" class="small">删除</button><button id="closeNote" class="small">关闭</button></div>
+    <h4>全部笔记</h4>
+    <div id="noteList" class="note-list"></div>
+    <div class="row" style="margin-top:12px;border-top:1px solid #e5e0d0;padding-top:10px;flex-wrap:wrap;gap:6px">
+      <span class="msg" style="flex:1;min-width:100%">换设备/换账号时：先「导出笔记」保存文件，再到新版本「导入笔记」。</span>
+      <button id="exportNotes" class="small">导出笔记</button>
+      <button id="importNotes" class="small">导入笔记</button>
+      <input id="importFile" type="file" accept="application/json,.json" style="display:none">
+    </div>
+  </div>
+</div>
+
+<div id="aiModal" class="modal hidden">
+  <div class="modal-box wide">
+    <h3>问 AI · 第 <span id="aiIdx">1</span> 句</h3>
+    <div id="aiSent" class="note-sent"></div>
+    <div class="ai-chips" id="aiChips"></div>
+    <div id="aiBox" class="ai-box">点上面的快捷问题，或在下面输入你的问题。</div>
+    <div class="row">
+      <input id="aiInput" type="text" placeholder="问点什么，如：为什么用 there？">
+      <button id="aiFav" class="small fav" title="收藏 AI 讲解到笔记">★收藏</button>
+      <button id="aiSend" class="small primary">发送</button>
+      <button id="aiStop" class="small hidden">停止</button>
+      <button id="aiClose" class="small">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div id="epModal" class="modal hidden">
+  <div class="modal-box wide">
+    <h3>选课 · 走遍美国 26 集</h3>
+    <p class="muted">Wi‑Fi 下点「下载」：6 线程全速、每片即存即续传，中断后点一下就接着下；下载中屏幕保持常亮。装成 App（左上「安装到手机」）缓存永久保留。</p>
+    <div id="epList" class="ep-list"></div>
+    <div class="row"><span id="storageInfo" class="msg"></span><button id="epClose" class="small">关闭</button></div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js"></script>
+<script>
+  const publicConfig = {
+    endpoint: "https://family-album-intensify.app.workbuddy.host",
+    oauthRelayBaseUrl: "https://www.workbuddy.cn/v2/as/genie-baas/oauth",
+    publishableKey: "wbpk_cjD9BRyN7nqhoo7dedneTd_guQJfsz6raqO5jFeP06n837AsaYKs93a"
+  };
+  const cloud = WorkBuddyCloud.createWorkBuddyCloud(publicConfig);
+</script>
+<script src="app.js?v=41" defer></script>
+</body>
+</html>
