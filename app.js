@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 54) {
+    if (m && +m[1] < 55) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -521,6 +521,11 @@ async function genNative(){
 }
 if($("nativeBtn")) $("nativeBtn").onclick = ()=>{
   if(!subs.length || cur<0) return;
+  // 未登录且该句无缓存：先提示登录，不要切进"生成中"卡住
+  if(!session){
+    let hasCache=false; try{ hasCache=!!localStorage.getItem(nativeKey()); }catch(e){}
+    if(!hasCache){ toast("地道翻译需要先登录（点底部登录）"); $("authModal").classList.remove("hidden"); return; }
+  }
   nativeMode = !nativeMode;
   $("nativeBtn").textContent = nativeMode ? "直译" : "地道翻译";
   $("nativeBtn").classList.toggle("active", nativeMode);
