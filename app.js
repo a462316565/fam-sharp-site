@@ -18,7 +18,7 @@ const CACHE_NAME = "fam-sharp-ep5-v1";
    与视频 partBase 同理——未配时回退站点相对路径，随时可关。 */
 /* 用 commit hash 固定版本：@main 分支对已更新文件会缓存 12h+ 不刷新，
    commit hash 是永久缓存且立即生效（每次数据更新后改这里 + 上传数据即可）。 */
-const DATA_BASE = "https://cdn.jsdelivr.net/gh/a462316565/fam-sharp-parts@8b59d723d50d601166d440b3fe78add38e72b631/data";
+const DATA_BASE = "https://cdn.jsdelivr.net/gh/a462316565/fam-sharp-parts@main/data";
 function dataURL(rel) {
   if (!DATA_BASE) return rel;
   const name = (rel || "").split("/").pop();   // 只取文件名，统一映射到 CDN 的 data/ 目录
