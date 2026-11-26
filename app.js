@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 21) {
+    if (m && +m[1] < 42) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
