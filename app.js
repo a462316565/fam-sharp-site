@@ -52,7 +52,9 @@ function swReady() {
 }
 async function setVideoSrc(src) {
   await swReady();
-  if (video.getAttribute("src") !== src) { video.src = src; video.load(); }
+  // 无条件设置并 load：即使属性相同，首次也必须 load 一次（HTML 里已移除 src，全靠这里）
+  if (video.getAttribute("src") !== src) video.setAttribute("src", src);
+  video.load();
 }
 
 const video = $("video");
