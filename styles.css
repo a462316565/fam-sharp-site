@@ -223,3 +223,6 @@ body.hide-ph .rich .anno .ph{visibility:hidden}
 .dict-row{flex-wrap:wrap}
 .rich.en-only .blk-cn{visibility:hidden}
 .rich.en-only .blk{justify-content:flex-start}
+.native-line{margin-top:6px;padding:7px 10px;background:#eef6ef;border:1px solid #cfe3d2;border-radius:9px;font-size:14px;line-height:1.6;color:#2f5d38}
+.native-line b{color:#1f7a3d}
+.native-line.hidden{display:none}
