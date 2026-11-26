@@ -1560,6 +1560,9 @@ async function loadSubs() {
     }
   } catch (e) { /* 清单加载失败：沿用开头从 localStorage 立即推断的配置 */ }
   $("epLabel").textContent = `第${ep.ep}集 · ${ep.title}`;
+  // 兜底：无论上面哪个分支，都要确保 SW 就绪后把当前集的视频挂上并 load
+  // （新用户无进度记录时 last 找不到，必须在这里补上，否则 video 永远是空 src）
+  setVideoSrc(ep.video);
   await loadSubs();
   buildActs();
   render(true);
