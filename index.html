@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <link rel="apple-touch-icon" sizes="120x120" href="icons/apple-touch-icon-iphone.png">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="styles.css?v=64">
+<link rel="stylesheet" href="styles.css?v=65">
 </head>
 <body>
 <main class="wrap">
@@ -86,10 +86,10 @@
     </section>
 
     <div class="foot">
-      <span class="foot-brand">走遍美国精听 <span id="epLabel" class="ep">第5集 · The Right Magic</span><span class="ver">v64 盲听模式</span></span>
+      <span class="foot-brand">走遍美国精听 <span id="epLabel" class="ep">第5集 · The Right Magic</span><span class="ver">v65 安装引导</span></span>
       <span id="dlPanel" class="dl-panel hidden"></span>
       <button id="epBtn" class="pill">选课</button>
-      <button id="installBtn" class="pill hidden">安装到手机</button>
+      <button id="installBtn" class="pill">安装到手机</button>
       <button id="offlineBtn" class="pill">检查离线</button>
       <button id="misproBtn" class="pill">错音表</button>
       <button id="wordBtn" class="pill">单词表</button>
@@ -131,6 +131,14 @@
       <button id="exportWord" class="small primary">一键导出 TXT（英文 中文）</button>
       <button id="closeWord" class="small">关闭</button>
     </div>
+  </div>
+</div>
+
+<div id="installTipModal" class="modal hidden">
+  <div class="modal-box">
+    <h3>安装到手机桌面</h3>
+    <p id="installTipText" class="muted" style="white-space:pre-wrap"></p>
+    <div class="row"><button id="installTipClose" class="small primary">知道了</button></div>
   </div>
 </div>
 
