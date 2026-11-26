@@ -39,11 +39,21 @@ self.addEventListener("activate", (e) => {
 
 /* ---------- 分片直供播放：整片不在缓存时，用分片切片/流式响应 ---------- */
 /* 每次读缓存里的最新剧集清单，避免换视频版本后 SW 一直沿用旧配置、分片名对不上 */
+const EPS_CDN = "https://cdn.jsdelivr.net/gh/a462316565/fam-sharp-parts@main/data/episodes.json";
 async function getEps() {
+  // 数据走公共 CDN：先读缓存（app.js 以 CDN URL 为键写入），再兜底主动拉取
+  const keys = [EPS_CDN, new URL("data/episodes.json", self.location.href).href];
+  for (const k of keys) {
+    try { const r = await caches.match(k); if (r) return await r.json(); } catch (err) {}
+  }
   try {
-    const r = await caches.match(new URL("data/episodes.json", self.location.href).href);
-    if (r) return await r.json();
-  } catch (err) { /* 忽略 */ }
+    const r = await fetch(EPS_CDN, { cache: "reload" });
+    if (r && r.ok) {
+      const data = await r.json();
+      const c = await caches.open(CACHE); c.put(EPS_CDN, new Response(JSON.stringify(data)));
+      return data;
+    }
+  } catch (err) {}
   return null;
 }
 async function serveFromParts(req, pathname, cache) {
