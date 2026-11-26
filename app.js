@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 50) {
+    if (m && +m[1] < 51) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -284,6 +284,7 @@ function renderSentence(i) {
   $("noteIdx").textContent = i + 1;
   $("noteSent").innerHTML = `<b>${r.sp || ""}</b> ${r.cnHtml || nl(r.cn)}<br>${r.enHtml || nl(r.en)}`;
   renderFavBar();
+  showNativeLine();
   if (!$("noteModal").classList.contains("hidden")) showNoteText();
   // 记住「学到哪一集哪一句」，下次打开自动回到这里（节流写）
   if (i >= 0 && Date.now() - savePosT > 1200) { savePosT = Date.now(); saveProgress(); }
@@ -306,9 +307,9 @@ function render(force = false) {
 const DICT_HINT = "听当前句的音频，输入你听到的英文再点「确认」；标点、大小写、删除线的弱读字母都判对。";
 function resetDict() {
   revealed = false;
+  answerMode = "both";   // 切句重置为带英文，避免点词后标签/状态不一致
   setRichRevealed(false);
-  if ($("showBoth")) $("showBoth").classList.remove("active");
-  if ($("showEnOnly")) $("showEnOnly").classList.remove("active");
+  if ($("answerModeBtn")) { $("answerModeBtn").textContent = "带英文"; $("answerModeBtn").classList.remove("active"); }
   $("dictInput").value = "";
   const f = $("dictFb");
   f.className = "dict-fb";
@@ -470,6 +471,53 @@ $("oneBtn").addEventListener("click", () => {
   toast("已开启放一句就停");
 });
 
+/* ---------- 地道翻译 / 直译 切换 ---------- */
+let nativeMode = false;   // false=直译(默认) / true=地道翻译
+function nativeKey(){ return "fam_native_" + ep.ep + "_" + cur; }
+function showNativeLine(){
+  const line=$("nativeLine"); if(!line) return;
+  if(!nativeMode || cur<0){ line.classList.add("hidden"); line.textContent=""; return; }
+  const r=subs[cur]; if(!r) return;
+  const cached=(()=>{try{return localStorage.getItem(nativeKey())}catch(e){return null}})();
+  line.classList.remove("hidden");
+  line.innerHTML = cached
+    ? '<b>地道：</b>'+esc(cached)
+    : '<b>地道：</b><span class="msg">生成中…</span>';
+}
+async function genNative(){
+  if(!session){ toast("地道翻译需要先登录（点底部登录）"); return; }
+  const r=subs[cur]; if(!r) return;
+  const cached=(()=>{try{return localStorage.getItem(nativeKey())}catch(e){return null}})();
+  nativeMode=true; showNativeLine();
+  if(cached) return;
+  try{
+    const model=await ensureAiModel();
+    const res=await cloud.llm.chat.completions.create({
+      model, stream:false,
+      messages:[
+        {role:"system",content:"你是英语翻译专家。把用户给的英文句子翻译成自然、地道、简洁的中文口语。只输出中文译文一行，不要解释、不要标注、不要复述英文。"},
+        {role:"user",content:r.en}
+      ]
+    });
+    let out = res && res.choices && res.choices[0] && res.choices[0].message && res.choices[0].message.content;
+    if(!out && res && res.choices && res.choices[0] && res.choices[0].delta) out=res.choices[0].delta.content;
+    out=(out||"").trim().split("\n")[0];
+    if(!out) throw new Error("empty");
+    try{ localStorage.setItem(nativeKey(), out); }catch(e){}
+    if(nativeMode) showNativeLine();
+  }catch(e){
+    if(nativeMode){ const line=$("nativeLine"); if(line) line.innerHTML='<b>地道：</b><span class="ai-err">生成失败，请重试</span>'; }
+  }
+}
+if($("nativeBtn")) $("nativeBtn").onclick = ()=>{
+  if(!subs.length || cur<0) return;
+  nativeMode = !nativeMode;
+  $("nativeBtn").textContent = nativeMode ? "直译" : "地道翻译";
+  $("nativeBtn").classList.toggle("active", nativeMode);
+  showNativeLine();
+  if(nativeMode) genNative();
+};
+
 /* ---------- 点单词从该词播放 / 长按加入错音·单词表 ---------- */
 const LS_MISPRO = "fam_mispronunciation";   // 错音列表
 const LS_WORDS  = "fam_wordlist";           // 单词列表
@@ -493,7 +541,7 @@ document.addEventListener("pointerdown", (e)=>{
   if(!w) return;
   _wordPressEl=w; _wordMoved=false; _wordStartX=e.clientX; _wordStartY=e.clientY;
   clearTimeout(_wordPressTimer);
-  _wordPressTimer=setTimeout(()=>{ if(!_wordMoved && _wordPressEl===w) showWordMenu(w); }, 550);
+  _wordPressTimer=setTimeout(()=>{ if(!_wordMoved && _wordPressEl===w) showWordMenu(w); }, 600);
 }, true);
 document.addEventListener("pointermove", (e)=>{
   if(_wordPressEl && (Math.abs(e.clientX-_wordStartX)>10 || Math.abs(e.clientY-_wordStartY)>10)) _wordMoved=true;
@@ -517,6 +565,13 @@ document.addEventListener("click", (e)=>{
   needRewind = false;    // 关键：不让 playCurrent 再拉回句首
   safeSeek(t);           // 定位到所点单词
   video.play().catch(()=>{});   // 从该词直接播放
+}, true);
+// 点菜单以外任何地方：关闭长按菜单
+document.addEventListener("pointerdown", (e)=>{
+  const m=$("wordMenu");
+  if(m && !m.classList.contains("hidden") && !e.target.closest("#wordMenu") && !e.target.closest(".w")){
+    m.classList.add("hidden");
+  }
 }, true);
 let _wordJustMenu=false;
 function showWordMenu(w){
@@ -1486,8 +1541,7 @@ function checkDictation() {
   if (!issues.length) {
     revealed = true;
     setRichRevealed(true);
-    $("showBoth").classList.toggle("active", answerMode==="both");
-    $("showEnOnly").classList.toggle("active", answerMode==="en");
+    if ($("answerModeBtn")) $("answerModeBtn").textContent = answerMode==="en" ? "仅英文" : "带英文";
     const optSkipped = ops.filter(o => o.t === "del" && o.kind === "opt").length;
     renderDictFb([], ops, Twords, optSkipped);
   } else {
@@ -1500,8 +1554,7 @@ function revealAnswer(mode){
   answerMode = mode;
   revealed = true;
   setRichRevealed(true);
-  $("showBoth").classList.toggle("active", mode==="both");
-  $("showEnOnly").classList.toggle("active", mode==="en");
+  if ($("answerModeBtn")) { $("answerModeBtn").textContent = mode==="en" ? "仅英文" : "带英文"; $("answerModeBtn").classList.toggle("active", mode==="en"); }
   const input = $("dictInput").value.trim();
   const f = $("dictFb");
   const hasRich = !!(richCur.find(x=>x.i===cur) || {}).units;
@@ -1518,8 +1571,10 @@ function revealAnswer(mode){
       + (hasRich ? '' : `<div class="dict-diff">${r.enHtml || nl(r.en)}</div>`);
   }
 }
-$("showBoth").addEventListener("click", ()=>revealAnswer("both"));
-$("showEnOnly").addEventListener("click", ()=>revealAnswer("en"));
+$("answerModeBtn").addEventListener("click", ()=>{
+  // 单次点击在两种模式间切换
+  revealAnswer(answerMode==="both" ? "en" : "both");
+});
 $("dictInput").addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
   e.preventDefault();
@@ -1545,8 +1600,22 @@ async function ensureAiModel() {
   aiModelId = m.id;
   return aiModelId;
 }
+function cleanAiOut(t){
+  if(!t) return t;
+  // 去掉 AI 常带的问题复述行 / markdown 标题行，只留简洁答案
+  return t.split("\n").filter(line=>{
+    const x=line.trim();
+    if(!x) return false;
+    if(/^\*\*.*\*\*$/.test(x)) return false;          // **标题**
+    if(/^#{1,4}\s/.test(x)) return false;                 // # 标题
+    if(/^(请把|请|帮我).{0,80}(拆开|讲解|翻译|直译)/.test(x)) return false; // 复述用户问题
+    if(/^(意群拆分与讲解|语法讲解|为什么用这个词|逐词直译|地道翻译)/.test(x)) return false;
+    return true;
+  }).join("\n");
+}
 function aiRender(out, q) {
-  $("aiBox").innerHTML = `<span class="ai-q">${esc(q)}</span>\n` + (out ? esc(out) : "…");
+  // 只显示简洁答案，不显示用户问题前缀
+  $("aiBox").textContent = out ? cleanAiOut(out) : "…";
   $("aiBox").scrollTop = 1e6;
 }
 let lastAiQ = "", lastAiOut = "";
@@ -1625,8 +1694,11 @@ $("aiClose").onclick = () => { if (aiAbort) aiAbort.abort(); $("aiModal").classL
 $("aiFav").onclick = async () => {
   if (!lastAiOut) { toast("先让 AI 回答一次，再收藏"); return; }
   const r = subs[cur];
-  await appendNote(`【AI讲解·第${cur + 1}句】${r.sp || ""} ${r.en}\n问：${lastAiQ}\n答：${lastAiOut}`);
-  if (session) toast("AI 讲解已收藏到笔记（云端同步）");
+  await appendNote(`【AI讲解·第${cur + 1}句】${r.sp || ""} ${r.en}\n答：${lastAiOut}`);
+  // 关掉弹窗并滚到收藏条，立刻看到收藏结果
+  $("aiModal").classList.add("hidden");
+  try { $("favBar").scrollIntoView({ behavior: "smooth", block: "nearest" }); } catch(e) {}
+  toast("AI 讲解已收藏到下方");
 };
 $("aiSend").onclick = () => { aiAsk($("aiInput").value); $("aiInput").value = ""; };
 $("aiStop").onclick = () => { if (aiAbort) aiAbort.abort(); };
