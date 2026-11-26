@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 65) {
+    if (m && +m[1] < 66) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -1736,6 +1736,29 @@ $("aiInput").addEventListener("keydown", (e) => {
     aiAsk($("aiInput").value); $("aiInput").value = "";
   }
 });
+
+/* PWA manifest：平台会拦截 .webmanifest 返回 HTML，这里用 Blob 动态注入，
+   保证浏览器能读到 manifest，beforeinstallprompt 才会触发 */
+(function injectManifest(){
+  try{
+    const base=location.origin+location.pathname;
+    const m={
+      name:"走遍美国精听", short_name:"精听", lang:"zh-CN",
+      start_url:base+"?sharecode=U7HBJKW6Y5", scope:base, id:base,
+      display:"standalone", orientation:"any",
+      background_color:"#f8f4e9", theme_color:"#f6f1e4",
+      icons:[
+        {src:base+"icons/icon-192.png",sizes:"192x192",type:"image/png",purpose:"any maskable"},
+        {src:base+"icons/icon-512.png",sizes:"512x512",type:"image/png",purpose:"any maskable"}
+      ]
+    };
+    const blob=new Blob([JSON.stringify(m)],{type:"application/manifest+json"});
+    const url=URL.createObjectURL(blob);
+    let link=document.querySelector('link[rel="manifest"]');
+    if(!link){ link=document.createElement("link"); link.rel="manifest"; document.head.appendChild(link); }
+    link.href=url;
+  }catch(e){}
+})();
 
 /* ---------- 安装到手机（PWA 一键安装，一次下载一劳永逸） ---------- */
 let installEvt = null;
