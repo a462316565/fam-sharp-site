@@ -1294,6 +1294,11 @@ async function aiAsk(q) {
   if (aiBusy || cur < 0) return;
   q = (q || "").trim();
   if (!q) return;
+  if (!session) {
+    $("aiBox").innerHTML = '<span class="ai-err">问 AI 需要先登录：点底部「登录同步笔记」，用手机号验证码登录一次即可。</span>';
+    $("authModal").classList.remove("hidden");
+    return;
+  }
   const r = subs[cur];
   const ctx = `当前句子（第${cur + 1}句，说话人：${r.sp || "未知"}）：\n英文：${r.en}\n中文：${r.cn}`;
   aiBusy = true;
@@ -1325,7 +1330,7 @@ async function aiAsk(q) {
       const code = (e && e.error && e.error.code) || "";
       let m = (e && e.error && e.error.message) || e.message || "未知错误";
       if (code.startsWith("quota_")) m = "AI 用量已达限额，请稍后再试";
-      else if (code.startsWith("auth_")) m = "AI 通道验证失败，请从已发布的网址打开本页";
+      else if (code.startsWith("auth_")) m = "登录已过期，请重新用手机号登录";
       else if (code.startsWith("gateway_") || code.startsWith("model_")) m = "AI 服务暂时不可用，请稍后重试";
       $("aiBox").innerHTML += `<span class="ai-err">\n出错：${esc(m)}</span>`;
       $("aiBox").scrollTop = 1e6;
