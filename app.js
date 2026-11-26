@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 51) {
+    if (m && +m[1] < 52) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -754,13 +754,19 @@ $("loginBtn").onclick = async () => {
 /* ---------- 云笔记 ---------- */
 async function loadNotes() {
   if (!session) return;
-  const { data, error } = await cloud.database.from("listening_notes")
-    .select("sentence_index,content").eq("episode", ep.ep);
-  if (error) { toast("笔记读取失败：" + (error.message || "请重试")); return; }
-  notes = {};
-  (data || []).forEach(n => { notes[n.sentence_index] = n.content || ""; });
-  loadLocalNotes();
-  renderNoteList(); renderFavBar(); showNoteText();
+  try {
+    const { data, error } = await cloud.database.from("listening_notes")
+      .select("sentence_index,content").eq("episode", ep.ep);
+    if (error) throw error;
+    notes = {};
+    (data || []).forEach(n => { notes[n.sentence_index] = n.content || ""; });
+    loadLocalNotes();
+    renderNoteList(); renderFavBar(); showNoteText();
+  } catch (e) {
+    // 云端暂时读不到：静默用本机收藏兜底，不打扰用户
+    loadLocalNotes();
+    renderNoteList(); renderFavBar(); showNoteText();
+  }
 }
 /* 本地收藏（未登录时也能用，存在手机里） */
 function localKey() { return "fam_local_notes_ep" + ep.ep; }
