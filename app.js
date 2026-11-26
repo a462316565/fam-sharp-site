@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 64) {
+    if (m && +m[1] < 65) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -1750,16 +1750,24 @@ window.addEventListener("appinstalled", () => {
   toast("安装完成！以后从桌面图标打开，缓存和进度永久保留");
 });
 $("installBtn").onclick = async () => {
-  if (!installEvt) {
-    toast("当前浏览器不支持一键安装：用 Chrome 菜单里的「添加到主屏幕」也可以");
+  if (installEvt) {
+    installEvt.prompt();
+    const res = await installEvt.userChoice.catch(() => null);
+    if (res && res.outcome === "accepted") toast("正在安装，装好后从桌面图标打开");
+    installEvt = null;
+    $("installBtn").classList.add("hidden");
     return;
   }
-  installEvt.prompt();
-  const res = await installEvt.userChoice.catch(() => null);
-  if (res && res.outcome === "accepted") toast("正在安装，装好后从桌面图标打开");
-  installEvt = null;
-  $("installBtn").classList.add("hidden");
+  // 浏览器没给一键安装事件：给出手动安装指引
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const tip = isIOS
+    ? "请用 Safari 打开本网址 → 点底部「分享」→ 选「添加到主屏幕」，即可从桌面图标打开。"
+    : "请用 Chrome 打开本网址 → 点右上角「⋮」菜单 → 选「添加到主屏幕 / 安装应用」，即可从桌面图标打开。安装后缓存和进度永久保留。";
+  $("installTipText").textContent = tip;
+  $("installTipModal").classList.remove("hidden");
 };
+$("installTipClose").onclick = ()=>$("installTipModal").classList.add("hidden");
 
 /* 页面改为正常文档流（视频在上、内容往下排），不再需要给 fixed dock 预留空间。
    底部留白交给 CSS 的 body padding-bottom + safe-area 处理。 */
