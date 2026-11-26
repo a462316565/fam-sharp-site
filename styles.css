@@ -228,3 +228,7 @@ body.hide-ph .rich .anno .ph{visibility:hidden}
 .native-line.hidden{display:none}
 .word-menu-mask{position:fixed;inset:0;z-index:79;background:transparent}
 .word-menu-mask.hidden,.word-menu.hidden{display:none}
+/* 盲听全隐藏：中英文台词消失，只留音标 */
+.rich.blind .blk-en,.rich.blind .blk-cn{visibility:hidden}
+.rich.blind .anno .ph{visibility:visible!important}
+.blind-btn-on{background:#3d3312;color:#fffdf7;border-color:#3d3312}
