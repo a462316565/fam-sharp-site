@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 67) {
+    if (m && +m[1] < 68) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -287,6 +287,8 @@ function renderSentence(i) {
   $("noteSent").innerHTML = `<b>${r.sp || ""}</b> ${r.cnHtml || nl(r.cn)}<br>${r.enHtml || nl(r.en)}`;
   renderFavBar();
   showNativeLine();
+  // 切句立即同步笔记输入框到当前句，绝不显示上一句残留（用户反馈"延迟上一句"）
+  clearTimeout(noteTimer);
   if (!$("noteModal").classList.contains("hidden")) showNoteText();
   // 记住「学到哪一集哪一句」，下次打开自动回到这里（节流写）
   if (i >= 0 && Date.now() - savePosT > 1200) { savePosT = Date.now(); saveProgress(); }
@@ -838,31 +840,34 @@ function showNoteText() {
 }
 async function saveNote() {
   if (!session || cur < 0) return;
+  // 锁定保存瞬间的句子和集：切句后 cur 会变，不能用全局变量，否则旧内容写到新句
+  const at = cur, atEp = ep.ep;
   const text = $("noteText").value;
   const seq = ++saveSeq;
   $("noteStatus").textContent = "同步中…";
   if (!text.trim()) {
     const { error } = await cloud.database.from("listening_notes")
-      .delete().eq("episode", ep.ep).eq("sentence_index", cur);
-    if (!error) { delete notes[cur]; renderNoteList(); renderFavBar(); }
+      .delete().eq("episode", atEp).eq("sentence_index", at);
+    if (!error) { delete notes[at]; }
   } else {
     const { data: existing, error: qerr } = await cloud.database.from("listening_notes")
-      .select("id").eq("episode", ep.ep).eq("sentence_index", cur).maybeSingle();
-    if (qerr) { $("noteStatus").textContent = "查询失败"; return; }
+      .select("id").eq("episode", atEp).eq("sentence_index", at).maybeSingle();
+    if (qerr) { if (cur === at) $("noteStatus").textContent = "查询失败"; return; }
     const payload = { content: text, updated_at: new Date().toISOString() };
     let error;
     if (existing) {
       ({ error } = await cloud.database.from("listening_notes").update(payload).eq("id", existing.id));
     } else {
       ({ error } = await cloud.database.from("listening_notes")
-        .insert({ episode: ep.ep, sentence_index: cur, ...payload }));
+        .insert({ episode: atEp, sentence_index: at, ...payload }));
     }
-    if (!error) notes[cur] = text;
+    if (!error) notes[at] = text;
   }
   if (seq !== saveSeq) return;
-  $("noteStatus").textContent = "已同步到云端";
   renderNoteList();
-  renderFavBar();   // 关键：保存成功后立刻刷新主页面下方收藏条，不用重开笔记页
+  renderFavBar();
+  // 只在仍是同一句时才改输入框/状态，避免把旧句内容刷进新句
+  if (cur === at) $("noteStatus").textContent = "已同步到云端";
 }
 function renderNoteList() {
   const box = $("noteList"); box.innerHTML = "";
