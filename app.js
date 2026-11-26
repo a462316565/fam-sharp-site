@@ -63,11 +63,24 @@ async function tryBlobFromCache(e) {
   try {
     const cache = await caches.open(CACHE_NAME);
     const blobs = [];
-    // 优先：已合成的整片
+    // 优先：已合成的整片。按文件名匹配，兼容旧域名缓存（迁站后 key 的 origin 变了）
+    const wantName = (e.video || "").split("/").pop();
     const whole = await cache.match(videoURL(e), { ignoreSearch: true });
     if (whole && whole.ok) {
       const b = await whole.blob();
       if (b.size > 1048576) blobs.push(b);
+    }
+    if (!blobs.length && wantName) {
+      const keys = await cache.keys();
+      for (const k of keys) {
+        try {
+          if (k.url.split("/").pop().split("?")[0] !== wantName) continue;
+          const r = await cache.match(k);
+          if (!r || !r.ok) continue;
+          const b = await r.blob();
+          if (b.size > 1048576) { blobs.push(b); break; }
+        } catch (err) {}
+      }
     }
     // 否则：拼分片（先按当前 partKey 精确取；取不到则扫描缓存里同集的所有分片）
     if (!blobs.length && e.parts) {
