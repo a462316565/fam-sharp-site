@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 68) {
+    if (m && +m[1] < 69) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -1589,11 +1589,9 @@ function revealAnswer(mode){
     const Twords = getEnWords(r);
     const ops = diffTokens(Utoks, Twords, matchWord);
     renderDictFb(analyzeDict(ops, Utoks, Twords), ops, Twords);
-    f.innerHTML += `<div class="fb-line">答案已在上方亮出，对照一下，再点「重放」听两遍加深印象。</div>`;
   } else {
-    f.className = "dict-fb bad";
-    f.innerHTML = `答案已在上方亮出。点「重放」听两遍，再自己输入试试。`
-      + (hasRich ? '' : `<div class="dict-diff">${r.enHtml || nl(r.en)}</div>`);
+    f.className = "dict-fb";
+    f.innerHTML = hasRich ? '' : `<div class="dict-diff">${r.enHtml || nl(r.en)}</div>`;
   }
 }
 $("blindBtn").addEventListener("click", ()=>{
