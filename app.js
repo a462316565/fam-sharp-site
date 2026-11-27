@@ -6,7 +6,7 @@
     if (sessionStorage.getItem("fam_stale_reloaded")) return;
     const s = document.querySelector('script[src*="app.js"]');
     const m = s && /(?:^|[?&])v=(\d+)/.exec(s.getAttribute("src"));
-    if (m && +m[1] < 69) {
+    if (m && +m[1] < 70) {
       sessionStorage.setItem("fam_stale_reloaded", "1");
       location.reload(true);
     }
@@ -991,11 +991,15 @@ $("importFile").addEventListener("change", async (ev) => {
 });
 
 $("noteBtn").onclick = () => {
-  $("noteModal").classList.remove("hidden");
+  clearTimeout(noteTimer);
   notes = {};
   loadLocalNotes();
+  // 立即同步输入框到当前句：绝不让上次/上一句的内容留在框里等云端
+  showNoteText();
+  $("noteStatus").textContent = session ? "读取云端…" : $("noteStatus").textContent;
+  $("noteModal").classList.remove("hidden");
   if (session) { loadNotes().catch(() => {}); }
-  else { renderNoteList(); showNoteText(); toast("未登录：收藏存在本机，可用「导出笔记」备份"); }
+  else { renderNoteList(); toast("未登录：收藏存在本机，可用「导出笔记」备份"); }
 };
 $("closeNote").onclick = async () => {
   clearTimeout(noteTimer);
